@@ -9,6 +9,7 @@ import { paymentService } from '../api/paymentService'
 import type { Order } from '../types/order'
 import { calculateOrderTotal, formatPrice } from '../types/order'
 import type { Profile } from '../types/profile'
+import type { PaymentMethod } from '../types/payment'
 import type { DeliveryFeeResult } from '../types/settings'
 import { isAdmin } from '../types/auth'
 import OrderHeader from '../components/OrderHeader.vue'
@@ -32,6 +33,31 @@ const deliveryFee = ref<DeliveryFeeResult | null>(null)
 const calculatingDelivery = ref(false)
 const hasPaymentMethod = ref<boolean | null>(null)
 
+// Location reminder banner (per-order dismissal)
+const showLocationReminder = ref(false)
+
+const locationReminderKey = computed(() => `wappi_location_reminder_${order.value?.id}`)
+
+watch(() => order.value?.id, (orderId) => {
+  if (orderId) {
+    showLocationReminder.value = localStorage.getItem(`wappi_location_reminder_${orderId}`) !== 'dismissed'
+  }
+}, { immediate: true })
+
+const dismissLocationReminder = () => {
+  showLocationReminder.value = false
+  localStorage.setItem(locationReminderKey.value, 'dismissed')
+}
+
+// Payment form state
+const showPaymentModal = ref(false)
+const paymentMethods = ref<PaymentMethod[]>([])
+const selectedPaymentMethod = ref<PaymentMethod | null>(null)
+const cvv = ref('')
+const processingPayment = ref(false)
+const paymentError = ref<string | null>(null)
+const locationError = ref<string | null>(null)
+
 let refreshInterval: ReturnType<typeof setInterval> | null = null
 
 // Check if the current user is the owner of the profile
@@ -40,11 +66,11 @@ const isProfileOwner = computed(() => {
   return profile.value.user_id === currentUserId.value
 })
 
-// Check if profile can be edited (CREATED, CONFIRMED or PREPARING) AND user is the owner
+// Check if profile can be edited: only before payment (CREATED status)
 const canEditProfile = computed(() => {
   if (!order.value) return false
   if (!isProfileOwner.value) return false
-  return ['CREATED', 'CONFIRMED', 'PREPARING'].includes(order.value.status)
+  return order.value.status === 'CREATED'
 })
 
 // Check if order has items data
@@ -190,6 +216,63 @@ const canMarkDelivered = computed(() => {
   return order.value.status !== 'DELIVERED' && order.value.status !== 'CANCELLED'
 })
 
+// Check if current user can pay (profile owner + status CREATED)
+const canPay = computed(() => {
+  if (!isProfileOwner.value || !order.value) return false
+  if (isUserAdmin.value) return false
+  return order.value.status === 'CREATED'
+})
+
+const openPaymentModal = async () => {
+  if (!profile.value?.location) {
+    locationError.value = 'Debés agregar una dirección de entrega antes de pagar.'
+    return
+  }
+  locationError.value = null
+
+  paymentError.value = null
+  cvv.value = ''
+  selectedPaymentMethod.value = null
+  try {
+    const methods = await paymentService.getPaymentMethods()
+    paymentMethods.value = methods
+    const defaultMethod = methods.find(m => m.is_default)
+    selectedPaymentMethod.value = defaultMethod || methods[0] || null
+  } catch (err) {
+    console.error('Error fetching payment methods:', err)
+    paymentMethods.value = []
+  }
+  showPaymentModal.value = true
+}
+
+const processPayment = async () => {
+  if (!order.value || !cvv.value || !selectedPaymentMethod.value) return
+
+  if (cvv.value.length < 3 || cvv.value.length > 4) {
+    paymentError.value = 'El CVV debe tener 3 o 4 dígitos'
+    return
+  }
+
+  processingPayment.value = true
+  paymentError.value = null
+
+  try {
+    await orderService.payForOrder(order.value.id, cvv.value)
+    showPaymentModal.value = false
+    await fetchOrder()
+  } catch (err: unknown) {
+    const axiosError = err as { response?: { data?: { code?: string; message?: string } } }
+    const errorCode = axiosError.response?.data?.code
+    if (errorCode === 'order:payment-failed') {
+      paymentError.value = 'El pago falló. Verificá tu CVV e intentá nuevamente.'
+    } else {
+      paymentError.value = axiosError.response?.data?.message || 'Error al procesar el pago.'
+    }
+  } finally {
+    processingPayment.value = false
+  }
+}
+
 // Check if order is delivered (all dots should be green)
 const isDelivered = computed(() => {
   return order.value?.status === 'DELIVERED'
@@ -281,23 +364,42 @@ onUnmounted(() => {
       <div v-else-if="order" class="order-content">
         <OrderHeader :order="order" />
 
-        <!-- Payment Method Alert -->
-        <div v-if="isProfileOwner && hasPaymentMethod === false && order.status !== 'DELIVERED' && order.status !== 'CANCELLED'"
+        <!-- Pay Now Banner (CREATED status) -->
+        <div v-if="canPay" class="status-alert alert-pay-now">
+          <div class="alert-content">
+            <span class="alert-icon">
+              <i class="pi pi-credit-card"></i>
+            </span>
+            <div class="alert-text">
+              <strong>Completá el pago</strong>
+              <p>Tu pedido está listo para ser pagado. Una vez pagado pasará al estado "Confirmado".</p>
+              <p v-if="locationError" class="location-error">
+                <i class="pi pi-exclamation-triangle"></i> {{ locationError }}
+              </p>
+            </div>
+          </div>
+          <button @click="openPaymentModal" class="alert-button pay-button">
+            Pagar ahora
+          </button>
+        </div>
+
+        <!-- No Payment Method Alert -->
+        <div v-else-if="isProfileOwner && hasPaymentMethod === false && order.status === 'CREATED'"
              class="status-alert alert-payment">
           <div class="alert-content">
             <span class="alert-icon">
               <i class="pi pi-credit-card"></i>
             </span>
             <div class="alert-text">
-              <strong>Configura un método de pago</strong>
-              <p>Recuerda configurar un método de pago para que tu pedido pueda ser enviado y entregado. El pago se procesará automáticamente cuando el pedido sea entregado.</p>
+              <strong>Configurá un método de pago</strong>
+              <p>Necesitás agregar una tarjeta para poder pagar el pedido.</p>
             </div>
           </div>
           <button
             @click="router.push('/payment-methods')"
             class="alert-button"
           >
-            Configurar método de pago
+            Agregar tarjeta
           </button>
         </div>
 
@@ -356,17 +458,35 @@ onUnmounted(() => {
           </div>
         </div>
 
+        <!-- Location Reminder Banner -->
+        <div v-if="canPay && showLocationReminder" class="location-reminder-banner">
+          <div class="reminder-content">
+            <i class="pi pi-map-marker"></i>
+            <span>Recordá verificar tu dirección de entrega antes de realizar el pago.</span>
+          </div>
+          <button class="reminder-close" @click="dismissLocationReminder" title="Cerrar">
+            <i class="pi pi-times"></i>
+          </button>
+        </div>
+
         <!-- Delivery Info Card -->
         <div v-if="profile" class="delivery-card">
           <div class="delivery-header">
             <h3>El pedido se entregará en:</h3>
-            <button
-              v-if="canEditProfile"
-              @click="editProfile"
-              class="edit-button"
+            <div
+              v-if="isProfileOwner"
+              class="edit-button-wrapper"
+              :title="!canEditProfile ? 'Los datos de entrega solo se pueden modificar antes de realizar el pago' : ''"
             >
-              Cambiar datos
-            </button>
+              <button
+                @click="canEditProfile && editProfile()"
+                class="edit-button"
+                :class="{ 'edit-button-disabled': !canEditProfile }"
+                :disabled="!canEditProfile"
+              >
+                Cambiar datos
+              </button>
+            </div>
           </div>
           <div class="delivery-info">
             <div class="info-row">
@@ -378,9 +498,6 @@ onUnmounted(() => {
               <span class="info-text">{{ profile.phone_number }}</span>
             </div>
           </div>
-          <p v-if="!canEditProfile" class="edit-notice">
-            Los datos de entrega solo se pueden modificar mientras el pedido no ha sido enviado
-          </p>
         </div>
 
         <div class="refresh-section">
@@ -422,6 +539,82 @@ onUnmounted(() => {
       @updated="handleOrderDataUpdated"
       @modification-requested="handleModificationRequested"
     />
+
+    <!-- Payment Modal -->
+    <div v-if="showPaymentModal" class="modal-overlay" @click.self="showPaymentModal = false">
+      <div class="payment-modal">
+        <div class="payment-modal-header">
+          <h2>Pagar Pedido</h2>
+          <button class="close-btn" @click="showPaymentModal = false">
+            <i class="pi pi-times"></i>
+          </button>
+        </div>
+
+        <div v-if="paymentMethods.length === 0" class="no-payment-methods">
+          <i class="pi pi-credit-card"></i>
+          <p>No tenés métodos de pago registrados.</p>
+          <button class="add-card-btn" @click="router.push('/payment-methods'); showPaymentModal = false">
+            Agregar tarjeta
+          </button>
+        </div>
+
+        <div v-else class="payment-form">
+          <div class="form-group">
+            <label>Tarjeta</label>
+            <div class="card-options">
+              <label
+                v-for="method in paymentMethods"
+                :key="method.id"
+                class="card-option"
+                :class="{ selected: selectedPaymentMethod?.id === method.id }"
+              >
+                <input
+                  type="radio"
+                  :value="method"
+                  v-model="selectedPaymentMethod"
+                  style="display: none"
+                />
+                <i class="pi pi-credit-card"></i>
+                <span>•••• {{ method.last_four_digits }}</span>
+                <small>{{ method.cardholder_name }}</small>
+              </label>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="order-cvv">CVV *</label>
+            <input
+              id="order-cvv"
+              v-model="cvv"
+              type="password"
+              placeholder="123"
+              maxlength="4"
+              class="cvv-input"
+              :disabled="processingPayment"
+            />
+          </div>
+
+          <div v-if="paymentError" class="payment-error">
+            <i class="pi pi-exclamation-triangle"></i>
+            {{ paymentError }}
+          </div>
+
+          <div class="payment-modal-actions">
+            <button class="btn-cancel" @click="showPaymentModal = false" :disabled="processingPayment">
+              Cancelar
+            </button>
+            <button
+              class="btn-pay"
+              @click="processPayment"
+              :disabled="!cvv || !selectedPaymentMethod || processingPayment"
+            >
+              <i v-if="!processingPayment" class="pi pi-lock"></i>
+              {{ processingPayment ? 'Procesando...' : 'Confirmar Pago' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -613,6 +806,10 @@ onUnmounted(() => {
   margin: 0;
 }
 
+.edit-button-wrapper {
+  position: relative;
+}
+
 .edit-button {
   background: #667eea;
   color: white;
@@ -625,13 +822,19 @@ onUnmounted(() => {
   transition: background 0.2s, transform 0.2s;
 }
 
-.edit-button:hover {
+.edit-button:hover:not(:disabled) {
   background: #5a67d8;
   transform: translateY(-1px);
 }
 
-.edit-button:active {
+.edit-button:active:not(:disabled) {
   transform: translateY(0);
+}
+
+.edit-button-disabled {
+  background: #d1d5db;
+  color: #9ca3af;
+  cursor: not-allowed;
 }
 
 .delivery-info {
@@ -865,24 +1068,296 @@ onUnmounted(() => {
   .action-buttons {
     flex-direction: column;
   }
-  
+
   .refresh-button,
   .delivered-button {
     width: 100%;
   }
-  
+
   .delivery-card,
   .order-summary-card {
     padding: 0.875rem;
   }
-  
+
   .status-alert {
     padding: 0.875rem;
   }
-  
+
   .alert-content {
     flex-direction: column;
     gap: 0.5rem;
   }
+}
+
+/* Pay Now Alert */
+.alert-pay-now {
+  border-left-color: #10b981;
+  background: #ecfdf5;
+}
+
+.location-error {
+  margin: 0.375rem 0 0 0;
+  font-size: 0.8rem;
+  color: #b45309;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+/* Location Reminder Banner */
+.location-reminder-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  background: #fefce8;
+  border: 1px solid #fde68a;
+  border-left: 4px solid #f59e0b;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.reminder-content {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: #92400e;
+  flex: 1;
+}
+
+.reminder-content i {
+  color: #f59e0b;
+  flex-shrink: 0;
+}
+
+.reminder-close {
+  background: none;
+  border: none;
+  color: #b45309;
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  flex-shrink: 0;
+  transition: background 0.2s;
+}
+
+.reminder-close:hover {
+  background: #fde68a;
+}
+
+.pay-button {
+  background: #10b981 !important;
+}
+
+.pay-button:hover {
+  background: #059669 !important;
+}
+
+/* Payment Modal */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.payment-modal {
+  background: white;
+  border-radius: 16px;
+  padding: 1.5rem;
+  width: 100%;
+  max-width: 420px;
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.2);
+}
+
+.payment-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.payment-modal-header h2 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 1.25rem;
+  color: #9ca3af;
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 4px;
+  transition: color 0.2s;
+}
+
+.close-btn:hover {
+  color: #374151;
+}
+
+.payment-form .form-group {
+  margin-bottom: 1.25rem;
+}
+
+.payment-form label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #374151;
+  margin-bottom: 0.5rem;
+}
+
+.card-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.card-option {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.card-option.selected {
+  border-color: #667eea;
+  background: #f5f3ff;
+}
+
+.card-option i {
+  color: #667eea;
+  font-size: 1.25rem;
+}
+
+.card-option span {
+  font-weight: 500;
+  color: #1f2937;
+  flex: 1;
+}
+
+.card-option small {
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+.cvv-input {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 1rem;
+  transition: border-color 0.2s;
+}
+
+.cvv-input:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.payment-error {
+  background: #fee2e2;
+  border: 1px solid #fca5a5;
+  color: #991b1b;
+  padding: 0.75rem;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.payment-modal-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+}
+
+.btn-cancel {
+  flex: 1;
+  padding: 0.75rem;
+  background: white;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-weight: 600;
+  color: #374151;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-cancel:hover:not(:disabled) {
+  background: #f9fafb;
+}
+
+.btn-pay {
+  flex: 2;
+  padding: 0.75rem;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  color: white;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  transition: opacity 0.2s;
+}
+
+.btn-pay:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.btn-pay:disabled,
+.btn-cancel:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.no-payment-methods {
+  text-align: center;
+  padding: 1.5rem 0;
+  color: #6b7280;
+}
+
+.no-payment-methods i {
+  font-size: 2.5rem;
+  color: #d1d5db;
+  margin-bottom: 0.75rem;
+  display: block;
+}
+
+.add-card-btn {
+  margin-top: 1rem;
+  background: #667eea;
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.add-card-btn:hover {
+  background: #5a67d8;
 }
 </style>

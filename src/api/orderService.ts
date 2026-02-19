@@ -36,6 +36,13 @@ export const orderService = {
     return data
   },
 
+  async payForOrder(orderId: string, securityCode: string): Promise<{ order_id: string; status: string }> {
+    const { data } = await apiClient.post(`/api/orders/${orderId}/pay`, {
+      security_code: securityCode
+    })
+    return data
+  },
+
   async getMyOrders(): Promise<MyOrdersResponse> {
     const { data } = await apiClient.get<MyOrdersResponse>('/api/orders/my')
     return data
