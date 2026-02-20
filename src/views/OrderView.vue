@@ -31,7 +31,6 @@ const isUserAdmin = ref(false)
 const markingDelivered = ref(false)
 const deliveryFee = ref<DeliveryFeeResult | null>(null)
 const calculatingDelivery = ref(false)
-const hasPaymentMethod = ref<boolean | null>(null)
 
 // Location reminder banner (per-order dismissal)
 const showLocationReminder = ref(false)
@@ -63,16 +62,19 @@ const paymentLinkError = ref<string | null>(null)
 
 let refreshInterval: ReturnType<typeof setInterval> | null = null
 
-// Check if the current user is the owner of the profile
-const isProfileOwner = computed(() => {
-  if (!currentUserId.value || !profile.value) return false
-  return profile.value.user_id === currentUserId.value
+// Check if the current user is the one who claimed this order
+const isOrderOwner = computed(() => {
+  if (!currentUserId.value || !order.value) return false
+  return order.value.user_id === currentUserId.value
 })
+
+// Keep isProfileOwner for backward compat (edit profile button on profile page)
+const isProfileOwner = computed(() => isOrderOwner.value)
 
 // Check if profile can be edited: only before payment (CREATED status)
 const canEditProfile = computed(() => {
   if (!order.value) return false
-  if (!isProfileOwner.value) return false
+  if (!isOrderOwner.value) return false
   return order.value.status === 'CREATED'
 })
 
@@ -88,8 +90,8 @@ const canEditItems = computed(() => {
 
 // Check if user can request modification (profile owner AND status before ON_THE_WAY)
 const canRequestModification = computed(() => {
-  if (!isProfileOwner.value || !order.value) return false
-  if (isUserAdmin.value) return false // Admin edits directly
+  if (!isOrderOwner.value || !order.value) return false
+  if (isUserAdmin.value) return false
   return ['CREATED', 'CONFIRMED', 'PREPARING'].includes(order.value.status)
 })
 
@@ -168,19 +170,6 @@ watch(() => order.value?.profile_id, (profileId) => {
   }
 }, { immediate: true })
 
-// Check payment method when profile is loaded
-watch(() => profile.value?.user_id, async (userId) => {
-  if (userId && isProfileOwner.value) {
-    try {
-      const result = await paymentService.checkPaymentMethod(userId)
-      hasPaymentMethod.value = result.has_payment_method
-    } catch (err) {
-      console.error('Error checking payment method:', err)
-      hasPaymentMethod.value = null
-    }
-  }
-}, { immediate: true })
-
 // Calculate delivery fee when profile and order data are available
 watch([() => profile.value?.location, () => order.value?.data?.items], () => {
   calculateDeliveryFee()
@@ -221,7 +210,7 @@ const canMarkDelivered = computed(() => {
 
 // Check if current user can pay (profile owner + status CREATED)
 const canPay = computed(() => {
-  if (!isProfileOwner.value || !order.value) return false
+  if (!isOrderOwner.value || !order.value) return false
   if (isUserAdmin.value) return false
   return order.value.status === 'CREATED'
 })
@@ -237,7 +226,6 @@ const openPaymentModal = async () => {
   paymentLinkError.value = null
   cvv.value = ''
   selectedPaymentMethod.value = null
-  paymentTab.value = 'card'
   try {
     const methods = await paymentService.getPaymentMethods()
     paymentMethods.value = methods
@@ -247,6 +235,7 @@ const openPaymentModal = async () => {
     console.error('Error fetching payment methods:', err)
     paymentMethods.value = []
   }
+  paymentTab.value = 'card'
   showPaymentModal.value = true
 }
 
@@ -403,26 +392,6 @@ onUnmounted(() => {
           </button>
         </div>
 
-        <!-- No Payment Method Alert -->
-        <div v-else-if="isProfileOwner && hasPaymentMethod === false && order.status === 'CREATED'"
-             class="status-alert alert-payment">
-          <div class="alert-content">
-            <span class="alert-icon">
-              <i class="pi pi-credit-card"></i>
-            </span>
-            <div class="alert-text">
-              <strong>Configurá un método de pago</strong>
-              <p>Necesitás agregar una tarjeta para poder pagar el pedido.</p>
-            </div>
-          </div>
-          <button
-            @click="router.push('/payment-methods')"
-            class="alert-button"
-          >
-            Agregar tarjeta
-          </button>
-        </div>
-
         <!-- Status Message Alert -->
         <div v-if="order.status_message && (order.status === 'PAUSED' || order.status === 'CANCELLED' || order.status === 'MODIFICATION_REQUESTED')"
              :class="['status-alert', order.status === 'PAUSED' ? 'alert-paused' : order.status === 'MODIFICATION_REQUESTED' ? 'alert-modification' : 'alert-cancelled']">
@@ -570,7 +539,33 @@ onUnmounted(() => {
           </button>
         </div>
 
-        <!-- Payment Tabs -->
+        <!-- No cards: show two options directly -->
+        <div v-if="paymentMethods.length === 0" class="no-cards-options">
+          <div class="no-cards-option" @click="router.push('/payment-methods'); showPaymentModal = false">
+            <i class="pi pi-credit-card"></i>
+            <div>
+              <strong>Configurar tarjeta</strong>
+              <span>Pagá con tu tarjeta guardada</span>
+            </div>
+            <i class="pi pi-chevron-right"></i>
+          </div>
+          <div class="no-cards-divider">o</div>
+          <div class="no-cards-option" @click="openPaymentLink">
+            <i class="pi pi-external-link"></i>
+            <div>
+              <strong>Link de pago</strong>
+              <span>Pagá a través de MercadoPago</span>
+            </div>
+            <i v-if="!generatingLink" class="pi pi-chevron-right"></i>
+            <span v-else class="generating-text">Generando...</span>
+          </div>
+          <div v-if="paymentLinkError" class="payment-error" style="margin-top:1rem">
+            <i class="pi pi-exclamation-triangle"></i> {{ paymentLinkError }}
+          </div>
+        </div>
+
+        <!-- Payment Tabs (only when cards exist) -->
+        <template v-else>
         <div class="payment-tabs">
           <button
             class="payment-tab"
@@ -592,15 +587,7 @@ onUnmounted(() => {
 
         <!-- Tab: Card Payment -->
         <div v-if="paymentTab === 'card'">
-          <div v-if="paymentMethods.length === 0" class="no-payment-methods">
-            <i class="pi pi-credit-card"></i>
-            <p>No tenés métodos de pago registrados.</p>
-            <button class="add-card-btn" @click="router.push('/payment-methods'); showPaymentModal = false">
-              Agregar tarjeta
-            </button>
-          </div>
-
-          <div v-else class="payment-form">
+          <div class="payment-form">
             <div class="form-group">
               <label>Tarjeta</label>
               <div class="card-options">
@@ -658,7 +645,7 @@ onUnmounted(() => {
         </div>
 
         <!-- Tab: Payment Link -->
-        <div v-if="paymentTab === 'link'" class="payment-link-section">
+        <div v-else-if="paymentTab === 'link'" class="payment-link-section">
           <div class="payment-link-info">
             <i class="pi pi-external-link payment-link-icon"></i>
             <p>Se abrirá una página de MercadoPago donde podrás completar el pago de forma segura.</p>
@@ -684,6 +671,7 @@ onUnmounted(() => {
             </button>
           </div>
         </div>
+        </template>
       </div>
     </div>
   </div>
@@ -1430,6 +1418,86 @@ onUnmounted(() => {
 
 .add-card-btn:hover {
   background: #5a67d8;
+}
+
+/* No cards options */
+.no-cards-options {
+  padding: 0.5rem 0;
+}
+
+.no-cards-option {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.no-cards-option:hover {
+  background: #f9fafb;
+  border-color: #667eea;
+}
+
+.no-cards-option > i:first-child {
+  font-size: 1.4rem;
+  color: #667eea;
+  flex-shrink: 0;
+}
+
+.no-cards-option > i:last-child {
+  font-size: 0.875rem;
+  color: #9ca3af;
+  margin-left: auto;
+}
+
+.no-cards-option > div {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.no-cards-option strong {
+  font-size: 0.9rem;
+  color: #111827;
+}
+
+.no-cards-option span {
+  font-size: 0.775rem;
+  color: #6b7280;
+}
+
+.no-cards-divider {
+  text-align: center;
+  color: #9ca3af;
+  font-size: 0.8rem;
+  margin: 0.6rem 0;
+}
+
+.generating-text {
+  font-size: 0.8rem;
+  color: #667eea;
+  margin-left: auto;
+}
+
+.use-link-btn {
+  margin-top: 0.5rem;
+  background: none;
+  border: 1px solid #667eea;
+  color: #667eea;
+  padding: 0.6rem 1.5rem;
+  border-radius: 8px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+  width: 100%;
+}
+
+.use-link-btn:hover {
+  background: #f5f3ff;
 }
 
 /* Payment Tabs */

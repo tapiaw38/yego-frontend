@@ -12,6 +12,7 @@ export interface OrderData {
 export interface Order {
   id: string
   profile_id: string
+  user_id?: string
   status: string
   status_index: number
   status_message?: string
