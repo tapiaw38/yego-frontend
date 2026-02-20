@@ -51,12 +51,15 @@ const dismissLocationReminder = () => {
 
 // Payment form state
 const showPaymentModal = ref(false)
+const paymentTab = ref<'card' | 'link'>('card')
 const paymentMethods = ref<PaymentMethod[]>([])
 const selectedPaymentMethod = ref<PaymentMethod | null>(null)
 const cvv = ref('')
 const processingPayment = ref(false)
 const paymentError = ref<string | null>(null)
 const locationError = ref<string | null>(null)
+const generatingLink = ref(false)
+const paymentLinkError = ref<string | null>(null)
 
 let refreshInterval: ReturnType<typeof setInterval> | null = null
 
@@ -231,8 +234,10 @@ const openPaymentModal = async () => {
   locationError.value = null
 
   paymentError.value = null
+  paymentLinkError.value = null
   cvv.value = ''
   selectedPaymentMethod.value = null
+  paymentTab.value = 'card'
   try {
     const methods = await paymentService.getPaymentMethods()
     paymentMethods.value = methods
@@ -243,6 +248,21 @@ const openPaymentModal = async () => {
     paymentMethods.value = []
   }
   showPaymentModal.value = true
+}
+
+const openPaymentLink = async () => {
+  if (!order.value) return
+  generatingLink.value = true
+  paymentLinkError.value = null
+  try {
+    const result = await orderService.createPaymentLink(order.value.id)
+    window.open(result.init_point, '_blank')
+  } catch (err: unknown) {
+    const axiosError = err as { response?: { data?: { message?: string } } }
+    paymentLinkError.value = axiosError.response?.data?.message || 'Error al generar el link de pago.'
+  } finally {
+    generatingLink.value = false
+  }
 }
 
 const processPayment = async () => {
@@ -550,66 +570,117 @@ onUnmounted(() => {
           </button>
         </div>
 
-        <div v-if="paymentMethods.length === 0" class="no-payment-methods">
-          <i class="pi pi-credit-card"></i>
-          <p>No tenés métodos de pago registrados.</p>
-          <button class="add-card-btn" @click="router.push('/payment-methods'); showPaymentModal = false">
-            Agregar tarjeta
+        <!-- Payment Tabs -->
+        <div class="payment-tabs">
+          <button
+            class="payment-tab"
+            :class="{ active: paymentTab === 'card' }"
+            @click="paymentTab = 'card'"
+          >
+            <i class="pi pi-credit-card"></i>
+            Con tarjeta
+          </button>
+          <button
+            class="payment-tab"
+            :class="{ active: paymentTab === 'link' }"
+            @click="paymentTab = 'link'"
+          >
+            <i class="pi pi-external-link"></i>
+            Link de pago
           </button>
         </div>
 
-        <div v-else class="payment-form">
-          <div class="form-group">
-            <label>Tarjeta</label>
-            <div class="card-options">
-              <label
-                v-for="method in paymentMethods"
-                :key="method.id"
-                class="card-option"
-                :class="{ selected: selectedPaymentMethod?.id === method.id }"
+        <!-- Tab: Card Payment -->
+        <div v-if="paymentTab === 'card'">
+          <div v-if="paymentMethods.length === 0" class="no-payment-methods">
+            <i class="pi pi-credit-card"></i>
+            <p>No tenés métodos de pago registrados.</p>
+            <button class="add-card-btn" @click="router.push('/payment-methods'); showPaymentModal = false">
+              Agregar tarjeta
+            </button>
+          </div>
+
+          <div v-else class="payment-form">
+            <div class="form-group">
+              <label>Tarjeta</label>
+              <div class="card-options">
+                <label
+                  v-for="method in paymentMethods"
+                  :key="method.id"
+                  class="card-option"
+                  :class="{ selected: selectedPaymentMethod?.id === method.id }"
+                >
+                  <input
+                    type="radio"
+                    :value="method"
+                    v-model="selectedPaymentMethod"
+                    style="display: none"
+                  />
+                  <i class="pi pi-credit-card"></i>
+                  <span>•••• {{ method.last_four_digits }}</span>
+                  <small>{{ method.cardholder_name }}</small>
+                </label>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="order-cvv">CVV *</label>
+              <input
+                id="order-cvv"
+                v-model="cvv"
+                type="password"
+                placeholder="123"
+                maxlength="4"
+                class="cvv-input"
+                :disabled="processingPayment"
+              />
+            </div>
+
+            <div v-if="paymentError" class="payment-error">
+              <i class="pi pi-exclamation-triangle"></i>
+              {{ paymentError }}
+            </div>
+
+            <div class="payment-modal-actions">
+              <button class="btn-cancel" @click="showPaymentModal = false" :disabled="processingPayment">
+                Cancelar
+              </button>
+              <button
+                class="btn-pay"
+                @click="processPayment"
+                :disabled="!cvv || !selectedPaymentMethod || processingPayment"
               >
-                <input
-                  type="radio"
-                  :value="method"
-                  v-model="selectedPaymentMethod"
-                  style="display: none"
-                />
-                <i class="pi pi-credit-card"></i>
-                <span>•••• {{ method.last_four_digits }}</span>
-                <small>{{ method.cardholder_name }}</small>
-              </label>
+                <i v-if="!processingPayment" class="pi pi-lock"></i>
+                {{ processingPayment ? 'Procesando...' : 'Confirmar Pago' }}
+              </button>
             </div>
           </div>
+        </div>
 
-          <div class="form-group">
-            <label for="order-cvv">CVV *</label>
-            <input
-              id="order-cvv"
-              v-model="cvv"
-              type="password"
-              placeholder="123"
-              maxlength="4"
-              class="cvv-input"
-              :disabled="processingPayment"
-            />
+        <!-- Tab: Payment Link -->
+        <div v-if="paymentTab === 'link'" class="payment-link-section">
+          <div class="payment-link-info">
+            <i class="pi pi-external-link payment-link-icon"></i>
+            <p>Se abrirá una página de MercadoPago donde podrás completar el pago de forma segura.</p>
+            <p class="payment-link-note">Una vez completado el pago, tu pedido pasará a estado "Confirmado" automáticamente.</p>
           </div>
 
-          <div v-if="paymentError" class="payment-error">
+          <div v-if="paymentLinkError" class="payment-error">
             <i class="pi pi-exclamation-triangle"></i>
-            {{ paymentError }}
+            {{ paymentLinkError }}
           </div>
 
           <div class="payment-modal-actions">
-            <button class="btn-cancel" @click="showPaymentModal = false" :disabled="processingPayment">
+            <button class="btn-cancel" @click="showPaymentModal = false" :disabled="generatingLink">
               Cancelar
             </button>
             <button
               class="btn-pay"
-              @click="processPayment"
-              :disabled="!cvv || !selectedPaymentMethod || processingPayment"
+              @click="openPaymentLink"
+              :disabled="generatingLink"
             >
-              <i v-if="!processingPayment" class="pi pi-lock"></i>
-              {{ processingPayment ? 'Procesando...' : 'Confirmar Pago' }}
+              <i v-if="!generatingLink" class="pi pi-external-link"></i>
+              {{ generatingLink ? 'Generando...' : 'Ir a pagar' }}
             </button>
           </div>
         </div>
@@ -1359,5 +1430,70 @@ onUnmounted(() => {
 
 .add-card-btn:hover {
   background: #5a67d8;
+}
+
+/* Payment Tabs */
+.payment-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.25rem;
+  border-bottom: 2px solid #e5e7eb;
+  padding-bottom: 0;
+}
+
+.payment-tab {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.6rem 0.75rem;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #6b7280;
+  cursor: pointer;
+  transition: color 0.2s, border-color 0.2s;
+}
+
+.payment-tab.active {
+  color: #667eea;
+  border-bottom-color: #667eea;
+}
+
+.payment-tab:hover:not(.active) {
+  color: #374151;
+}
+
+/* Payment Link Tab */
+.payment-link-section {
+  padding-top: 0.5rem;
+}
+
+.payment-link-info {
+  text-align: center;
+  padding: 1rem 0;
+}
+
+.payment-link-icon {
+  font-size: 2.5rem;
+  color: #667eea;
+  display: block;
+  margin-bottom: 0.75rem;
+}
+
+.payment-link-info p {
+  font-size: 0.9rem;
+  color: #374151;
+  margin: 0 0 0.5rem 0;
+  line-height: 1.5;
+}
+
+.payment-link-note {
+  font-size: 0.8rem !important;
+  color: #6b7280 !important;
 }
 </style>

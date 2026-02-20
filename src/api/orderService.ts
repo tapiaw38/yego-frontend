@@ -43,6 +43,11 @@ export const orderService = {
     return data
   },
 
+  async createPaymentLink(orderId: string): Promise<{ init_point: string; sandbox_init_point: string }> {
+    const { data } = await apiClient.post(`/api/orders/${orderId}/payment-link`, {})
+    return data
+  },
+
   async getMyOrders(): Promise<MyOrdersResponse> {
     const { data } = await apiClient.get<MyOrdersResponse>('/api/orders/my')
     return data
