@@ -2,32 +2,42 @@
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/wappi-logo.png" />
+    <link rel="icon" type="image/svg+xml" href="/yego-logo.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Wappi</title>
+    <title>Yego</title>
     <script>
       // Prevenir errores de scripts externos (extensiones del navegador, etc.)
-      window.addEventListener('error', function(e) {
-        if (e.message && (
-          e.message.includes('addEventListener') || 
-          e.message.includes('Cannot read properties of null')
-        )) {
-          if (e.filename && (
-            e.filename.includes('share-modal') || 
-            e.filename.includes('extension') ||
-            e.filename.includes('chrome-extension') ||
-            e.filename.includes('moz-extension')
-          )) {
-            e.preventDefault();
-            e.stopPropagation();
-            return false;
+      window.addEventListener(
+        "error",
+        function (e) {
+          if (
+            e.message &&
+            (e.message.includes("addEventListener") ||
+              e.message.includes("Cannot read properties of null"))
+          ) {
+            if (
+              e.filename &&
+              (e.filename.includes("share-modal") ||
+                e.filename.includes("extension") ||
+                e.filename.includes("chrome-extension") ||
+                e.filename.includes("moz-extension"))
+            ) {
+              e.preventDefault();
+              e.stopPropagation();
+              return false;
+            }
           }
-        }
-      }, true);
-      
+        },
+        true,
+      );
+
       // También capturar errores no capturados
-      window.addEventListener('unhandledrejection', function(e) {
-        if (e.reason && e.reason.message && e.reason.message.includes('share-modal')) {
+      window.addEventListener("unhandledrejection", function (e) {
+        if (
+          e.reason &&
+          e.reason.message &&
+          e.reason.message.includes("share-modal")
+        ) {
           e.preventDefault();
           return false;
         }
