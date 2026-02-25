@@ -5,7 +5,7 @@
   import { profileService } from "../api/profileService";
   import { authService } from "../api/authService";
   import { settingsService } from "../api/settingsService";
-  import { paymentService } from "../api/paymentService";
+  import { paymentMethodService } from "../api/paymentMethodService";
   import type { Order } from "../types/order";
   import { calculateOrderTotal, formatPrice } from "../types/order";
   import type { Profile } from "../types/profile";
@@ -234,6 +234,11 @@
     return order.value.status === "CREATED";
   });
 
+  const closePaymentModal = async () => {
+    showPaymentModal.value = false;
+    await fetchOrder();
+  };
+
   const openPaymentModal = async () => {
     if (!profile.value?.location) {
       locationError.value =
@@ -247,7 +252,7 @@
     cvv.value = "";
     selectedPaymentMethod.value = null;
     try {
-      const methods = await paymentService.getPaymentMethods();
+      const methods = await paymentMethodService.getPaymentMethods();
       paymentMethods.value = methods;
       const defaultMethod = methods.find((m) => m.is_default);
       selectedPaymentMethod.value = defaultMethod || methods[0] || null;
@@ -604,12 +609,12 @@
     <div
       v-if="showPaymentModal"
       class="modal-overlay"
-      @click.self="showPaymentModal = false"
+      @click.self="closePaymentModal"
     >
       <div class="payment-modal">
         <div class="payment-modal-header">
           <h2>Pagar Pedido</h2>
-          <button class="close-btn" @click="showPaymentModal = false">
+          <button class="close-btn" @click="closePaymentModal">
             <i class="pi pi-times"></i>
           </button>
         </div>
@@ -718,7 +723,7 @@
               <div class="payment-modal-actions">
                 <button
                   class="btn-cancel"
-                  @click="showPaymentModal = false"
+                  @click="closePaymentModal"
                   :disabled="processingPayment"
                 >
                   Cancelar
@@ -759,7 +764,7 @@
             <div class="payment-modal-actions">
               <button
                 class="btn-cancel"
-                @click="showPaymentModal = false"
+                @click="closePaymentModal"
                 :disabled="generatingLink"
               >
                 Cancelar

@@ -273,7 +273,7 @@ const loadPaymentMethods = async () => {
   
   try {
     loading.value = true
-    paymentMethods.value = await paymentMethodService.getPaymentMethods(currentUser.value.id)
+    paymentMethods.value = await paymentMethodService.getPaymentMethods()
   } catch (err: any) {
     console.error('Error loading payment methods:', err)
     toast.add({
@@ -343,7 +343,7 @@ const handleAddCard = async () => {
       doc_number: formData.value.doc_number
     }
 
-    await paymentMethodService.createPaymentMethod(currentUser.value.id, paymentMethodData)
+    await paymentMethodService.createPaymentMethod(paymentMethodData)
 
     toast.add({
       severity: 'success',
@@ -390,7 +390,7 @@ const setAsDefault = async (id: number) => {
 
   updating.value = id
   try {
-    await paymentMethodService.updatePaymentMethod(id, currentUser.value.id, { is_default: true })
+    await paymentMethodService.updatePaymentMethod(id, { is_default: true })
     toast.add({
       severity: 'success',
       summary: 'Éxito',
@@ -421,7 +421,7 @@ const handleDelete = async () => {
 
   deleting.value = deletingId.value
   try {
-    await paymentMethodService.deletePaymentMethod(deletingId.value, currentUser.value.id)
+    await paymentMethodService.deletePaymentMethod(deletingId.value)
     toast.add({
       severity: 'success',
       summary: 'Éxito',

@@ -10,7 +10,6 @@
   import AdminSettingsPanel from "../components/AdminSettingsPanel.vue";
   import type { Transaction } from "../types/transaction";
   import {
-    formatPrice,
     StatusLabels as TransactionStatusLabels,
     StatusColors as TransactionStatusColors,
   } from "../types/transaction";
@@ -49,6 +48,7 @@
   interface Order {
     id: string;
     profile_id: string;
+    user_id?: string;
     status: string;
     status_message?: string;
     status_index: number;
@@ -168,7 +168,7 @@
       const profileUserIds = profiles.value
         .map((p) => p.user_id)
         .filter(Boolean);
-      const orderUserIds = orders.value.map((o) => o.user_id).filter(Boolean);
+      const orderUserIds = orders.value.map((o) => o.user_id).filter((id): id is string => Boolean(id));
 
       // Also get user_ids from order profiles
       const orderProfileUserIds = orders.value
@@ -184,7 +184,7 @@
           ...orderUserIds,
           ...orderProfileUserIds,
         ]),
-      ];
+      ].filter((id): id is string => Boolean(id));
 
       const userInfoPromises = uniqueUserIds.map(async (userId) => {
         const userInfo = await fetchUserInfo(userId);
