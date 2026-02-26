@@ -174,10 +174,21 @@
 
   // Fetch profile when order is loaded
   watch(
-    () => order.value?.profile_id,
-    (profileId) => {
-      if (profileId) {
-        fetchProfile(profileId);
+    () => order.value,
+    async (newOrder) => {
+      if (!newOrder) return;
+      if (newOrder.profile_id) {
+        fetchProfile(newOrder.profile_id);
+      } else if (newOrder.status === "CREATED" && isOrderOwner.value) {
+        // Order has no profile assigned yet — try to find user's own profile
+        try {
+          const profileCheck = await profileService.checkCompleted();
+          if (profileCheck.profile_id) {
+            fetchProfile(profileCheck.profile_id);
+          }
+        } catch {
+          // ignore
+        }
       }
     },
     { immediate: true },
@@ -197,8 +208,9 @@
   };
 
   const editProfile = () => {
-    if (order.value) {
-      router.push(`/edit-profile/${order.value.profile_id}`);
+    const profileId = order.value?.profile_id || profile.value?.id;
+    if (profileId) {
+      router.push(`/edit-profile/${profileId}`);
     }
   };
 
@@ -242,7 +254,9 @@
   const openPaymentModal = async () => {
     try {
       const profileCheck = await profileService.checkCompleted();
+      console.log("[ProfileCheck][openPaymentModal] result:", profileCheck);
       if (!profileCheck.is_completed) {
+        console.log("[ProfileCheck][openPaymentModal] profile incomplete, redirecting");
         locationError.value =
           "Completá tu perfil de entrega antes de pagar. Redirigiendo...";
         setTimeout(() => {
@@ -256,7 +270,8 @@
         }, 3000);
         return;
       }
-    } catch {
+    } catch (e) {
+      console.error("[ProfileCheck][openPaymentModal] error:", e);
       // si falla el check, continuar con la verificación local
       if (!profile.value?.location) {
         locationError.value =
@@ -382,10 +397,13 @@
   watch(
     () => order.value?.user_id,
     async (userId) => {
+      console.log("[ProfileCheck][watch] userId:", userId, "isAuth:", authService.isAuthenticated());
       if (!userId || !authService.isAuthenticated()) return;
       try {
         const profileCheck = await profileService.checkCompleted();
+        console.log("[ProfileCheck][watch] result:", profileCheck);
         if (!profileCheck.is_completed) {
+          console.log("[ProfileCheck][watch] redirecting to complete profile");
           if (profileCheck.profile_id) {
             router.push(
               `/edit-profile/${profileCheck.profile_id}?returnTo=/order/${route.params.id}`,
@@ -394,8 +412,8 @@
             router.push(`/profile?returnTo=/order/${route.params.id}`);
           }
         }
-      } catch {
-        // ignorar errores silenciosamente
+      } catch (e) {
+        console.error("[ProfileCheck][watch] error:", e);
       }
     },
   );
