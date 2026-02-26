@@ -111,42 +111,45 @@
 
         <div class="form-group">
           <label for="cardNumber">Número de tarjeta *</label>
-          <InputText 
+          <InputText
             id="cardNumber"
             v-model="formData.card_number"
             placeholder="1234 5678 9012 3456"
             required
             :disabled="adding"
             @input="formatCardNumber"
+            @paste="handleCardNumberPaste"
           />
         </div>
 
         <div class="form-row">
           <div class="form-group">
             <label for="expiryMonth">Mes *</label>
-            <InputText 
+            <InputText
               id="expiryMonth"
               v-model="formData.expiration_month"
               placeholder="MM"
               maxlength="2"
               required
               :disabled="adding"
+              @input="formatMonth"
             />
           </div>
           <div class="form-group">
             <label for="expiryYear">Año *</label>
-            <InputText 
+            <InputText
               id="expiryYear"
               v-model="formData.expiration_year"
-              placeholder="YYYY"
-              maxlength="4"
+              placeholder="AA"
+              maxlength="2"
               required
               :disabled="adding"
+              @input="formatYear"
             />
           </div>
           <div class="form-group">
             <label for="cvv">CVV *</label>
-            <InputText 
+            <InputText
               id="cvv"
               v-model="formData.security_code"
               placeholder="123"
@@ -154,6 +157,7 @@
               required
               :disabled="adding"
               type="password"
+              @input="formatCVV"
             />
           </div>
         </div>
@@ -289,16 +293,46 @@ const loadPaymentMethods = async () => {
 
 const formatCardNumber = (event: Event) => {
   const input = event.target as HTMLInputElement
-  let value = input.value.replace(/\s/g, '')
-  value = value.replace(/\D/g, '')
-  
+  let value = input.value.replace(/\s/g, '').replace(/\D/g, '').slice(0, 16)
   let formatted = ''
   for (let i = 0; i < value.length; i += 4) {
     formatted += value.slice(i, i + 4) + ' '
   }
-  formatted = formatted.trim()
-  
-  formData.value.card_number = formatted
+  formData.value.card_number = formatted.trim()
+}
+
+const handleCardNumberPaste = (event: ClipboardEvent) => {
+  event.preventDefault()
+  const pasted = event.clipboardData?.getData('text') || ''
+  const digits = pasted.replace(/\D/g, '').slice(0, 16)
+  let formatted = ''
+  for (let i = 0; i < digits.length; i += 4) {
+    formatted += digits.slice(i, i + 4) + ' '
+  }
+  formData.value.card_number = formatted.trim()
+}
+
+const formatMonth = (event: Event) => {
+  const input = event.target as HTMLInputElement
+  const digits = input.value.replace(/\D/g, '').slice(0, 2)
+  formData.value.expiration_month = digits
+  if (digits.length === 2) {
+    document.getElementById('expiryYear')?.focus()
+  }
+}
+
+const formatYear = (event: Event) => {
+  const input = event.target as HTMLInputElement
+  const digits = input.value.replace(/\D/g, '').slice(0, 2)
+  formData.value.expiration_year = digits
+  if (digits.length === 2) {
+    document.getElementById('cvv')?.focus()
+  }
+}
+
+const formatCVV = (event: Event) => {
+  const input = event.target as HTMLInputElement
+  formData.value.security_code = input.value.replace(/\D/g, '').slice(0, 4)
 }
 
 const handleAddCard = async () => {
@@ -310,10 +344,12 @@ const handleAddCard = async () => {
   try {
     const cardNumber = formData.value.card_number.replace(/\s/g, '')
     const lastFourDigits = cardNumber.slice(-4)
+    const yearRaw = formData.value.expiration_year
+    const fullYear = yearRaw.length === 2 ? `20${yearRaw}` : yearRaw
 
     const tokenData = {
       card_expiration_month: formData.value.expiration_month.padStart(2, '0'),
-      card_expiration_year: formData.value.expiration_year,
+      card_expiration_year: fullYear,
       card_number: cardNumber,
       cardholder_name: formData.value.cardholder_name.toUpperCase(),
       security_code: formData.value.security_code,
@@ -333,7 +369,7 @@ const handleAddCard = async () => {
       payment_method_id: paymentMethodId,
       cardholder_name: formData.value.cardholder_name.toUpperCase(),
       expiration_month: formData.value.expiration_month.padStart(2, '0'),
-      expiration_year: formData.value.expiration_year,
+      expiration_year: fullYear,
       is_default: formData.value.is_default || paymentMethods.value.length === 0,
       payer_email: currentUser.value.email,
       // Raw card fields so the backend can create a server-side token for customer card saving.
@@ -600,7 +636,7 @@ onMounted(async () => {
 
 .form-row {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: 90px 90px 90px;
   gap: 1rem;
 }
 

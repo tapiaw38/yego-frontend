@@ -109,9 +109,13 @@
       });
       success.value = true;
 
-      // Redirect back after 2 seconds
       setTimeout(() => {
-        router.back();
+        const returnTo = route.query.returnTo as string;
+        if (returnTo) {
+          router.push(returnTo);
+        } else {
+          router.back();
+        }
       }, 2000);
     } catch (err: unknown) {
       const axiosError = err as { response?: { data?: { message?: string } } };

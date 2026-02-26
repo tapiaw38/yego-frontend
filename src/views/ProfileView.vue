@@ -1,6 +1,6 @@
 <script setup lang="ts">
   import { ref, onMounted, computed } from "vue";
-  import { useRouter } from "vue-router";
+  import { useRoute, useRouter } from "vue-router";
   import { profileService } from "../api/profileService";
   import { authService } from "../api/authService";
   import { settingsService } from "../api/settingsService";
@@ -10,6 +10,7 @@
   import MapboxPicker from "../components/MapboxPicker.vue";
   import { AppHeader } from "@/components/ui";
 
+  const route = useRoute();
   const router = useRouter();
   const isUserAdmin = ref(false);
   const currentUser = ref<{
@@ -195,7 +196,12 @@
       error.value = null;
 
       setTimeout(() => {
-        success.value = false;
+        const returnTo = route.query.returnTo as string;
+        if (returnTo) {
+          router.push(returnTo);
+        } else {
+          success.value = false;
+        }
       }, 2000);
     } catch (err: unknown) {
       const axiosError = err as { response?: { data?: { message?: string } } };

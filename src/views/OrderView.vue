@@ -240,10 +240,29 @@
   };
 
   const openPaymentModal = async () => {
-    if (!profile.value?.location) {
-      locationError.value =
-        "Debés agregar una dirección de entrega antes de pagar.";
-      return;
+    try {
+      const profileCheck = await profileService.checkCompleted();
+      if (!profileCheck.is_completed) {
+        locationError.value =
+          "Completá tu perfil de entrega antes de pagar. Redirigiendo...";
+        setTimeout(() => {
+          if (profileCheck.profile_id) {
+            router.push(
+              `/edit-profile/${profileCheck.profile_id}?returnTo=/order/${order.value?.id}`,
+            );
+          } else {
+            router.push(`/profile?returnTo=/order/${order.value?.id}`);
+          }
+        }, 3000);
+        return;
+      }
+    } catch {
+      // si falla el check, continuar con la verificación local
+      if (!profile.value?.location) {
+        locationError.value =
+          "Completá tu perfil de entrega antes de pagar.";
+        return;
+      }
     }
     locationError.value = null;
 
@@ -358,6 +377,28 @@
     await fetchOrder();
     showItemsModal.value = false;
   };
+
+  // Si el usuario está autenticado y el perfil está incompleto, redirigir a editar perfil
+  watch(
+    () => order.value?.user_id,
+    async (userId) => {
+      if (!userId || !authService.isAuthenticated()) return;
+      try {
+        const profileCheck = await profileService.checkCompleted();
+        if (!profileCheck.is_completed) {
+          if (profileCheck.profile_id) {
+            router.push(
+              `/edit-profile/${profileCheck.profile_id}?returnTo=/order/${route.params.id}`,
+            );
+          } else {
+            router.push(`/profile?returnTo=/order/${route.params.id}`);
+          }
+        }
+      } catch {
+        // ignorar errores silenciosamente
+      }
+    },
+  );
 
   onMounted(() => {
     currentUserId.value = getCurrentUserId();
