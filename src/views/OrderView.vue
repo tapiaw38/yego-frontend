@@ -256,7 +256,9 @@
       const profileCheck = await profileService.checkCompleted();
       console.log("[ProfileCheck][openPaymentModal] result:", profileCheck);
       if (!profileCheck.is_completed) {
-        console.log("[ProfileCheck][openPaymentModal] profile incomplete, redirecting");
+        console.log(
+          "[ProfileCheck][openPaymentModal] profile incomplete, redirecting",
+        );
         locationError.value =
           "Completá tu perfil de entrega antes de pagar. Redirigiendo...";
         setTimeout(() => {
@@ -274,8 +276,7 @@
       console.error("[ProfileCheck][openPaymentModal] error:", e);
       // si falla el check, continuar con la verificación local
       if (!profile.value?.location) {
-        locationError.value =
-          "Completá tu perfil de entrega antes de pagar.";
+        locationError.value = "Completá tu perfil de entrega antes de pagar.";
         return;
       }
     }
@@ -397,7 +398,12 @@
   watch(
     () => order.value?.user_id,
     async (userId) => {
-      console.log("[ProfileCheck][watch] userId:", userId, "isAuth:", authService.isAuthenticated());
+      console.log(
+        "[ProfileCheck][watch] userId:",
+        userId,
+        "isAuth:",
+        authService.isAuthenticated(),
+      );
       if (!userId || !authService.isAuthenticated()) return;
       try {
         const profileCheck = await profileService.checkCompleted();
@@ -439,46 +445,59 @@
 
     <main class="main-content">
       <!-- Loading State -->
-      <div v-if="loading" class="loading-state">
-        <div class="spinner"></div>
-        <p>Cargando pedido...</p>
+      <div v-if="loading" class="feedback-state">
+        <div class="loading-ring">
+          <div></div>
+          <div></div>
+          <div></div>
+          <div></div>
+        </div>
+        <p class="feedback-text">Cargando pedido...</p>
       </div>
 
       <!-- Error State -->
-      <div v-else-if="error" class="error-state">
-        <div class="error-icon"><i class="pi pi-exclamation-triangle"></i></div>
-        <h2>Pedido no encontrado</h2>
-        <p>{{ error }}</p>
-        <button @click="refresh" class="retry-button">Intentar de nuevo</button>
+      <div v-else-if="error" class="feedback-state">
+        <div class="error-icon-wrapper">
+          <i class="pi pi-exclamation-triangle"></i>
+        </div>
+        <h2 class="feedback-title">Pedido no encontrado</h2>
+        <p class="feedback-subtitle">{{ error }}</p>
+        <button @click="refresh" class="btn btn--primary btn--md">
+          <i class="pi pi-refresh"></i>
+          Intentar de nuevo
+        </button>
       </div>
 
       <!-- Order Content -->
       <div v-else-if="order" class="order-content">
+        <!-- Order Header Component -->
         <OrderHeader :order="order" />
 
-        <!-- Pay Now Banner (CREATED status) -->
-        <div v-if="canPay" class="status-alert alert-pay-now">
-          <div class="alert-content">
-            <span class="alert-icon">
+        <!-- Pay Now Alert -->
+        <div v-if="canPay" class="alert alert--pay">
+          <div class="alert__body">
+            <span class="alert__icon alert__icon--pay">
               <i class="pi pi-credit-card"></i>
             </span>
-            <div class="alert-text">
-              <strong>Completá el pago</strong>
-              <p>
+            <div class="alert__text">
+              <strong class="alert__title">Completá el pago</strong>
+              <p class="alert__desc">
                 Tu pedido está listo para ser pagado. Una vez pagado pasará al
                 estado "Confirmado".
               </p>
-              <p v-if="locationError" class="location-error">
-                <i class="pi pi-exclamation-triangle"></i> {{ locationError }}
+              <p v-if="locationError" class="alert__location-error">
+                <i class="pi pi-exclamation-triangle"></i>
+                {{ locationError }}
               </p>
             </div>
           </div>
-          <button @click="openPaymentModal" class="alert-button pay-button">
+          <button @click="openPaymentModal" class="btn btn--pay btn--sm">
+            <i class="pi pi-lock"></i>
             Pagar ahora
           </button>
         </div>
 
-        <!-- Status Message Alert -->
+        <!-- Status Message Alert (Paused / Cancelled / Modification) -->
         <div
           v-if="
             order.status_message &&
@@ -487,16 +506,16 @@
               order.status === 'MODIFICATION_REQUESTED')
           "
           :class="[
-            'status-alert',
+            'alert',
             order.status === 'PAUSED'
-              ? 'alert-paused'
+              ? 'alert--paused'
               : order.status === 'MODIFICATION_REQUESTED'
-                ? 'alert-modification'
-                : 'alert-cancelled',
+                ? 'alert--modification'
+                : 'alert--cancelled',
           ]"
         >
-          <div class="alert-content">
-            <span class="alert-icon">
+          <div class="alert__body">
+            <span class="alert__icon">
               <i v-if="order.status === 'PAUSED'" class="pi pi-pause"></i>
               <i
                 v-else-if="order.status === 'MODIFICATION_REQUESTED'"
@@ -504,82 +523,110 @@
               ></i>
               <i v-else class="pi pi-times-circle"></i>
             </span>
-            <div class="alert-text">
-              <strong>{{
-                order.status === "PAUSED"
-                  ? "Tu pedido está pausado"
-                  : order.status === "MODIFICATION_REQUESTED"
-                    ? "Modificación solicitada"
-                    : "Tu pedido ha sido cancelado"
-              }}</strong>
-              <p>{{ order.status_message }}</p>
+            <div class="alert__text">
+              <strong class="alert__title">
+                {{
+                  order.status === "PAUSED"
+                    ? "Tu pedido está pausado"
+                    : order.status === "MODIFICATION_REQUESTED"
+                      ? "Modificación solicitada"
+                      : "Tu pedido ha sido cancelado"
+                }}
+              </strong>
+              <p class="alert__desc">{{ order.status_message }}</p>
             </div>
           </div>
           <button
             v-if="order.status === 'PAUSED' && canEditProfile"
             @click="editProfile"
-            class="alert-button"
+            class="btn btn--outline btn--sm"
           >
             Editar perfil
           </button>
         </div>
 
+        <!-- Timeline -->
         <OrderTimeline :order="order" :all-completed="isDelivered" />
 
         <!-- Order Summary Card -->
-        <div v-if="hasOrderItems" class="order-summary-card">
-          <div class="summary-header">
-            <h3>Resumen del pedido</h3>
-            <button class="view-details-button" @click="showItemsModal = true">
+        <div v-if="hasOrderItems" class="card">
+          <div class="card__header">
+            <div class="card__header-left">
+              <span class="card__icon card__icon--indigo">
+                <i class="pi pi-shopping-bag"></i>
+              </span>
+              <h3 class="card__title">Resumen del pedido</h3>
+            </div>
+            <button
+              class="btn btn--ghost btn--sm"
+              @click="showItemsModal = true"
+            >
+              <i class="pi pi-list"></i>
               Ver detalle
             </button>
           </div>
-          <div class="summary-content">
+
+          <div class="summary-rows">
             <div class="summary-row">
-              <span class="summary-label"
-                >Productos ({{ order.data!.items.length }})</span
-              >
-              <span class="summary-value">{{ formatPrice(orderTotal) }}</span>
-            </div>
-            <div class="summary-row">
-              <span class="summary-label">Envío</span>
-              <span class="summary-value" v-if="calculatingDelivery"
-                >Calculando...</span
-              >
-              <span class="summary-value" v-else-if="!profile?.location"
-                >Pendiente ubicación</span
-              >
-              <span class="summary-value" v-else-if="deliveryFee">{{
-                formatPrice(deliveryFee.total_price)
-              }}</span>
-              <span class="summary-value" v-else>--</span>
-            </div>
-            <div class="summary-row summary-total">
-              <span class="summary-label">Total</span>
-              <span class="summary-value total-amount">{{
-                formatPrice(grandTotal)
+              <span class="summary-row__label">
+                Productos
+                <span class="summary-row__badge">{{
+                  order.data!.items.length
+                }}</span>
+              </span>
+              <span class="summary-row__value">{{
+                formatPrice(orderTotal)
               }}</span>
             </div>
-            <p v-if="hasPendingPrices" class="pending-price-notice">
+
+            <div class="summary-row">
+              <span class="summary-row__label">Envío</span>
+              <span
+                class="summary-row__value summary-row__value--muted"
+                v-if="calculatingDelivery"
+              >
+                <span class="inline-spinner"></span>
+                Calculando...
+              </span>
+              <span
+                class="summary-row__value summary-row__value--muted"
+                v-else-if="!profile?.location"
+              >
+                Pendiente ubicación
+              </span>
+              <span class="summary-row__value" v-else-if="deliveryFee">
+                {{ formatPrice(deliveryFee.total_price) }}
+              </span>
+              <span class="summary-row__value summary-row__value--muted" v-else
+                >--</span
+              >
+            </div>
+
+            <div class="summary-row summary-row--total">
+              <span class="summary-row__label">Total</span>
+              <span class="summary-row__value summary-row__value--total">
+                {{ formatPrice(grandTotal) }}
+              </span>
+            </div>
+
+            <div v-if="hasPendingPrices" class="pending-notice">
+              <i class="pi pi-clock"></i>
               Estamos buscando el mejor precio para algunos productos...
-            </p>
+            </div>
           </div>
         </div>
 
         <!-- Location Reminder Banner -->
-        <div
-          v-if="canPay && showLocationReminder"
-          class="location-reminder-banner"
-        >
-          <div class="reminder-content">
-            <i class="pi pi-map-marker"></i>
+        <div v-if="canPay && showLocationReminder" class="location-banner">
+          <div class="location-banner__content">
+            <i class="pi pi-map-marker location-banner__icon"></i>
             <span
               >Recordá verificar tu dirección de entrega antes de realizar el
               pago.</span
             >
           </div>
           <button
-            class="reminder-close"
+            class="location-banner__close"
             @click="dismissLocationReminder"
             title="Cerrar"
           >
@@ -588,12 +635,16 @@
         </div>
 
         <!-- Delivery Info Card -->
-        <div v-if="profile" class="delivery-card">
-          <div class="delivery-header">
-            <h3>El pedido se entregará en:</h3>
+        <div v-if="profile" class="card">
+          <div class="card__header">
+            <div class="card__header-left">
+              <span class="card__icon card__icon--green">
+                <i class="pi pi-map-marker"></i>
+              </span>
+              <h3 class="card__title">Entrega en</h3>
+            </div>
             <div
               v-if="isProfileOwner"
-              class="edit-button-wrapper"
               :title="
                 !canEditProfile
                   ? 'Los datos de entrega solo se pueden modificar antes de realizar el pago'
@@ -602,53 +653,66 @@
             >
               <button
                 @click="canEditProfile && editProfile()"
-                class="edit-button"
-                :class="{ 'edit-button-disabled': !canEditProfile }"
+                class="btn btn--ghost btn--sm"
+                :class="{ 'btn--disabled': !canEditProfile }"
                 :disabled="!canEditProfile"
               >
+                <i class="pi pi-pencil"></i>
                 Cambiar datos
               </button>
             </div>
           </div>
-          <div class="delivery-info">
-            <div class="info-row">
-              <span class="info-icon"><i class="pi pi-map-marker"></i></span>
-              <span class="info-text">{{
-                profile.location?.address || "Sin dirección"
-              }}</span>
+
+          <div class="delivery-details">
+            <div class="delivery-details__row">
+              <i class="pi pi-map-marker delivery-details__icon"></i>
+              <span class="delivery-details__text">
+                {{ profile.location?.address || "Sin dirección" }}
+              </span>
             </div>
-            <div class="info-row">
-              <span class="info-icon"><i class="pi pi-phone"></i></span>
-              <span class="info-text">{{ profile.phone_number }}</span>
+            <div class="delivery-details__row">
+              <i class="pi pi-phone delivery-details__icon"></i>
+              <span class="delivery-details__text">{{
+                profile.phone_number
+              }}</span>
             </div>
           </div>
         </div>
 
-        <div class="refresh-section">
-          <div class="action-buttons">
-            <button @click="refresh" class="refresh-button">
-              🔄 Actualizar estado
+        <!-- Actions Section -->
+        <div class="actions-section">
+          <div class="actions-section__buttons">
+            <button @click="refresh" class="btn btn--outline btn--md">
+              <i class="pi pi-refresh"></i>
+              Actualizar estado
             </button>
             <button
               v-if="canMarkDelivered"
               @click="markAsDelivered"
               :disabled="markingDelivered"
-              class="delivered-button"
+              class="btn btn--delivered btn--md"
+              :class="{ 'btn--loading': markingDelivered }"
             >
-              <i v-if="!markingDelivered" class="pi pi-check-circle"></i>
+              <span
+                v-if="markingDelivered"
+                class="inline-spinner inline-spinner--white"
+              ></span>
+              <i v-else class="pi pi-check-circle"></i>
               {{ markingDelivered ? "Marcando..." : "Marcar entregado" }}
             </button>
           </div>
-          <p v-if="lastUpdated" class="last-updated">
-            Última actualización: {{ lastUpdated.toLocaleTimeString("es-ES") }}
+          <p v-if="lastUpdated" class="actions-section__timestamp">
+            <i class="pi pi-clock"></i>
+            Actualizado a las {{ lastUpdated.toLocaleTimeString("es-ES") }}
           </p>
         </div>
       </div>
     </main>
 
+    <!-- Footer -->
     <footer class="app-footer">
-      <img :src="yegoLogo" alt="Yego" class="footer-logo" />
-      <p>Powered by Gillie AI</p>
+      <img :src="yegoLogo" alt="Yego" class="app-footer__logo" />
+      <p class="app-footer__text">Powered by Gillie AI</p>
     </footer>
 
     <!-- Order Items Modal -->
@@ -671,14 +735,19 @@
       @click.self="closePaymentModal"
     >
       <div class="payment-modal">
-        <div class="payment-modal-header">
-          <h2>Pagar Pedido</h2>
-          <button class="close-btn" @click="closePaymentModal">
+        <div class="payment-modal__header">
+          <div class="payment-modal__title-group">
+            <span class="payment-modal__title-icon">
+              <i class="pi pi-credit-card"></i>
+            </span>
+            <h2 class="payment-modal__title">Pagar Pedido</h2>
+          </div>
+          <button class="modal-close-btn" @click="closePaymentModal">
             <i class="pi pi-times"></i>
           </button>
         </div>
 
-        <!-- No cards: show two options directly -->
+        <!-- No saved cards: two options -->
         <div v-if="paymentMethods.length === 0" class="no-cards-options">
           <div
             class="no-cards-option"
@@ -687,38 +756,47 @@
               showPaymentModal = false;
             "
           >
-            <i class="pi pi-credit-card"></i>
-            <div>
+            <span class="no-cards-option__icon">
+              <i class="pi pi-credit-card"></i>
+            </span>
+            <div class="no-cards-option__text">
               <strong>Configurar tarjeta</strong>
               <span>Pagá con tu tarjeta guardada</span>
             </div>
-            <i class="pi pi-chevron-right"></i>
+            <i class="pi pi-chevron-right no-cards-option__arrow"></i>
           </div>
-          <div class="no-cards-divider">o</div>
+
+          <div class="no-cards-divider">
+            <span>o</span>
+          </div>
+
           <div class="no-cards-option" @click="openPaymentLink">
-            <i class="pi pi-external-link"></i>
-            <div>
+            <span class="no-cards-option__icon">
+              <i class="pi pi-external-link"></i>
+            </span>
+            <div class="no-cards-option__text">
               <strong>Link de pago</strong>
               <span>Pagá a través de MercadoPago</span>
             </div>
-            <i v-if="!generatingLink" class="pi pi-chevron-right"></i>
+            <i
+              v-if="!generatingLink"
+              class="pi pi-chevron-right no-cards-option__arrow"
+            ></i>
             <span v-else class="generating-text">Generando...</span>
           </div>
-          <div
-            v-if="paymentLinkError"
-            class="payment-error"
-            style="margin-top: 1rem"
-          >
-            <i class="pi pi-exclamation-triangle"></i> {{ paymentLinkError }}
+
+          <div v-if="paymentLinkError" class="payment-error">
+            <i class="pi pi-exclamation-triangle"></i>
+            {{ paymentLinkError }}
           </div>
         </div>
 
-        <!-- Payment Tabs (only when cards exist) -->
+        <!-- Payment Tabs (cards exist) -->
         <template v-else>
           <div class="payment-tabs">
             <button
               class="payment-tab"
-              :class="{ active: paymentTab === 'card' }"
+              :class="{ 'payment-tab--active': paymentTab === 'card' }"
               @click="paymentTab = 'card'"
             >
               <i class="pi pi-credit-card"></i>
@@ -726,7 +804,7 @@
             </button>
             <button
               class="payment-tab"
-              :class="{ active: paymentTab === 'link' }"
+              :class="{ 'payment-tab--active': paymentTab === 'link' }"
               @click="paymentTab = 'link'"
             >
               <i class="pi pi-external-link"></i>
@@ -735,81 +813,100 @@
           </div>
 
           <!-- Tab: Card Payment -->
-          <div v-if="paymentTab === 'card'">
-            <div class="payment-form">
-              <div class="form-group">
-                <label>Tarjeta</label>
-                <div class="card-options">
-                  <label
-                    v-for="method in paymentMethods"
-                    :key="method.id"
-                    class="card-option"
-                    :class="{
-                      selected: selectedPaymentMethod?.id === method.id,
-                    }"
-                  >
-                    <input
-                      type="radio"
-                      :value="method"
-                      v-model="selectedPaymentMethod"
-                      style="display: none"
-                    />
+          <div v-if="paymentTab === 'card'" class="payment-form">
+            <div class="form-field">
+              <label class="form-field__label">Seleccionar tarjeta</label>
+              <div class="card-options">
+                <label
+                  v-for="method in paymentMethods"
+                  :key="method.id"
+                  class="card-option"
+                  :class="{
+                    'card-option--selected':
+                      selectedPaymentMethod?.id === method.id,
+                  }"
+                >
+                  <input
+                    type="radio"
+                    :value="method"
+                    v-model="selectedPaymentMethod"
+                    style="display: none"
+                  />
+                  <span class="card-option__icon">
                     <i class="pi pi-credit-card"></i>
-                    <span>•••• {{ method.last_four_digits }}</span>
-                    <small>{{ method.cardholder_name }}</small>
-                  </label>
-                </div>
+                  </span>
+                  <span class="card-option__number"
+                    >•••• {{ method.last_four_digits }}</span
+                  >
+                  <small class="card-option__holder">{{
+                    method.cardholder_name
+                  }}</small>
+                  <span
+                    v-if="selectedPaymentMethod?.id === method.id"
+                    class="card-option__check"
+                  >
+                    <i class="pi pi-check"></i>
+                  </span>
+                </label>
               </div>
+            </div>
 
-              <div class="form-group">
-                <label for="order-cvv">CVV *</label>
-                <input
-                  id="order-cvv"
-                  v-model="cvv"
-                  type="password"
-                  placeholder="123"
-                  maxlength="4"
-                  class="cvv-input"
-                  :disabled="processingPayment"
-                />
-              </div>
+            <div class="form-field">
+              <label class="form-field__label" for="order-cvv">
+                CVV
+                <span class="form-field__required">*</span>
+              </label>
+              <input
+                id="order-cvv"
+                v-model="cvv"
+                type="password"
+                placeholder="123"
+                maxlength="4"
+                class="form-field__input"
+                :disabled="processingPayment"
+              />
+            </div>
 
-              <div v-if="paymentError" class="payment-error">
-                <i class="pi pi-exclamation-triangle"></i>
-                {{ paymentError }}
-              </div>
+            <div v-if="paymentError" class="payment-error">
+              <i class="pi pi-exclamation-triangle"></i>
+              {{ paymentError }}
+            </div>
 
-              <div class="payment-modal-actions">
-                <button
-                  class="btn-cancel"
-                  @click="closePaymentModal"
-                  :disabled="processingPayment"
-                >
-                  Cancelar
-                </button>
-                <button
-                  class="btn-pay"
-                  @click="processPayment"
-                  :disabled="
-                    !cvv || !selectedPaymentMethod || processingPayment
-                  "
-                >
-                  <i v-if="!processingPayment" class="pi pi-lock"></i>
-                  {{ processingPayment ? "Procesando..." : "Confirmar Pago" }}
-                </button>
-              </div>
+            <div class="payment-modal__actions">
+              <button
+                class="btn btn--outline btn--md"
+                @click="closePaymentModal"
+                :disabled="processingPayment"
+              >
+                Cancelar
+              </button>
+              <button
+                class="btn btn--pay btn--md btn--flex2"
+                @click="processPayment"
+                :disabled="!cvv || !selectedPaymentMethod || processingPayment"
+                :class="{ 'btn--loading': processingPayment }"
+              >
+                <span
+                  v-if="processingPayment"
+                  class="inline-spinner inline-spinner--white"
+                ></span>
+                <i v-else class="pi pi-lock"></i>
+                {{ processingPayment ? "Procesando..." : "Confirmar Pago" }}
+              </button>
             </div>
           </div>
 
           <!-- Tab: Payment Link -->
           <div v-else-if="paymentTab === 'link'" class="payment-link-section">
             <div class="payment-link-info">
-              <i class="pi pi-external-link payment-link-icon"></i>
-              <p>
+              <span class="payment-link-info__icon">
+                <i class="pi pi-external-link"></i>
+              </span>
+              <p class="payment-link-info__desc">
                 Se abrirá una página de MercadoPago donde podrás completar el
                 pago de forma segura.
               </p>
-              <p class="payment-link-note">
+              <p class="payment-link-info__note">
                 Una vez completado el pago, tu pedido pasará a estado
                 "Confirmado" automáticamente.
               </p>
@@ -820,20 +917,25 @@
               {{ paymentLinkError }}
             </div>
 
-            <div class="payment-modal-actions">
+            <div class="payment-modal__actions">
               <button
-                class="btn-cancel"
+                class="btn btn--outline btn--md"
                 @click="closePaymentModal"
                 :disabled="generatingLink"
               >
                 Cancelar
               </button>
               <button
-                class="btn-pay"
+                class="btn btn--pay btn--md btn--flex2"
                 @click="openPaymentLink"
                 :disabled="generatingLink"
+                :class="{ 'btn--loading': generatingLink }"
               >
-                <i v-if="!generatingLink" class="pi pi-external-link"></i>
+                <span
+                  v-if="generatingLink"
+                  class="inline-spinner inline-spinner--white"
+                ></span>
+                <i v-else class="pi pi-external-link"></i>
                 {{ generatingLink ? "Generando..." : "Ir a pagar" }}
               </button>
             </div>
@@ -845,16 +947,27 @@
 </template>
 
 <style scoped>
+  /* =============================================
+   PAGE SHELL
+   ============================================= */
   .order-view {
+    --_accent: #6366f1; /* indigo-500 — no global alias exists */
+    --_accent-dark: #4f46e5; /* indigo-600 */
+    --_accent-bg: #eef2ff; /* indigo-50  */
+    --_accent-bg-md: #e0e7ff; /* indigo-100 */
+    --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.08);
+    --shadow-modal: 0 20px 60px rgba(0, 0, 0, 0.18);
+    --radius-card: 0.75rem;
+    --radius-btn: 0.5rem;
     min-height: 100vh;
     display: flex;
     flex-direction: column;
-    background: var(--surface-ground);
+    background: var(--vt-c-gray-100);
   }
 
   .main-content {
     flex: 1;
-    padding: 1rem;
+    padding: 1.25rem 1rem 2rem;
     max-width: 640px;
     margin: 0 auto;
     width: 100%;
@@ -862,84 +975,108 @@
 
   @media (max-width: 480px) {
     .main-content {
-      padding: 0.75rem;
+      padding: 1rem 0.75rem 1.5rem;
     }
   }
 
-  .loading-state,
-  .error-state {
+  /* =============================================
+   FEEDBACK STATES (Loading / Error)
+   ============================================= */
+  .feedback-state {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 3rem 1rem;
+    padding: 4rem 1rem;
     text-align: center;
+    gap: 1rem;
   }
 
-  .spinner {
-    width: 48px;
-    height: 48px;
-    border: 4px solid var(--border-light);
-    border-top-color: var(--color-primary);
+  .loading-ring {
+    display: inline-block;
+    position: relative;
+    width: 52px;
+    height: 52px;
+  }
+
+  .loading-ring div {
+    box-sizing: border-box;
+    display: block;
+    position: absolute;
+    width: 42px;
+    height: 42px;
+    margin: 5px;
+    border: 4px solid var(--_accent);
     border-radius: 50%;
-    animation: spin 1s linear infinite;
-    margin-bottom: 1rem;
+    animation: loading-ring-spin 1.2s cubic-bezier(0.5, 0, 0.5, 1) infinite;
+    border-color: var(--_accent) transparent transparent transparent;
   }
 
-  @keyframes spin {
-    to {
+  .loading-ring div:nth-child(1) {
+    animation-delay: -0.45s;
+  }
+  .loading-ring div:nth-child(2) {
+    animation-delay: -0.3s;
+  }
+  .loading-ring div:nth-child(3) {
+    animation-delay: -0.15s;
+  }
+
+  @keyframes loading-ring-spin {
+    0% {
+      transform: rotate(0deg);
+    }
+    100% {
       transform: rotate(360deg);
     }
   }
 
-  .error-icon {
-    font-size: 4rem;
-    margin-bottom: 1rem;
-  }
-
-  .error-state h2 {
-    color: var(--color-text-primary);
-    margin-bottom: 0.5rem;
-  }
-
-  .error-state p {
+  .feedback-text {
+    font-size: 0.9375rem;
     color: var(--color-text-muted);
-    margin-bottom: 1.5rem;
+    margin: 0;
   }
 
-  .retry-button,
-  .refresh-button {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    border: none;
-    padding: 0.75rem 1.5rem;
-    border-radius: 8px;
-    font-weight: 500;
-    cursor: pointer;
-    transition:
-      transform 0.2s,
-      box-shadow 0.2s;
+  .error-icon-wrapper {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--color-danger) 8%, transparent);
+    border: 2px solid var(--vt-c-danger-lighter);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.75rem;
+    color: var(--color-danger);
   }
 
-  .retry-button:hover,
-  .refresh-button:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  .feedback-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--vt-c-gray-900);
+    margin: 0;
   }
 
-  .retry-button:active,
-  .refresh-button:active {
-    transform: translateY(0);
+  .feedback-subtitle {
+    font-size: 0.9375rem;
+    color: var(--color-text-muted);
+    margin: 0;
   }
 
+  /* =============================================
+   ORDER CONTENT ANIMATION
+   ============================================= */
   .order-content {
-    animation: fadeIn 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    gap: 0.875rem;
+    animation: content-enter 0.3s ease both;
   }
 
-  @keyframes fadeIn {
+  @keyframes content-enter {
     from {
       opacity: 0;
-      transform: translateY(10px);
+      transform: translateY(8px);
     }
     to {
       opacity: 1;
@@ -947,510 +1084,758 @@
     }
   }
 
-  .refresh-section {
-    margin-top: 1.5rem;
-    text-align: center;
-  }
-
-  .action-buttons {
-    display: flex;
-    gap: 0.75rem;
-    justify-content: center;
-    flex-wrap: wrap;
-  }
-
-  .orders-list-button {
-    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-    color: white;
-    border: none;
-    padding: 0.75rem 1.5rem;
-    border-radius: 8px;
-    font-weight: 500;
-    cursor: pointer;
-    transition:
-      transform 0.2s,
-      box-shadow 0.2s;
-  }
-
-  .orders-list-button:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
-  }
-
-  .orders-list-button:active {
-    transform: translateY(0);
-  }
-
-  .delivered-button {
-    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-    color: white;
-    border: none;
-    padding: 0.75rem 1.5rem;
-    border-radius: 8px;
-    font-weight: 500;
-    cursor: pointer;
-    transition:
-      transform 0.2s,
-      box-shadow 0.2s;
-  }
-
-  .delivered-button:hover:not(:disabled) {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
-  }
-
-  .delivered-button:active:not(:disabled) {
-    transform: translateY(0);
-  }
-
-  .delivered-button:disabled {
-    opacity: 0.7;
-    cursor: not-allowed;
-  }
-
-  .last-updated {
-    color: var(--color-text-muted);
-    font-size: 0.875rem;
-    margin-top: 0.75rem;
-  }
-
-  .delivery-card {
-    background: var(--bg-white);
-    border-radius: 12px;
-    padding: 1rem;
-    margin-top: 1rem;
-    box-shadow: 0 1px 3px var(--shadow-light);
+  /* =============================================
+   CARD BASE
+   ============================================= */
+  .card {
+    background: var(--surface-card);
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-card);
     border: 1px solid var(--border-light);
+    overflow: hidden;
   }
 
-  .delivery-header {
+  .card__header {
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    margin-bottom: 0.75rem;
+    justify-content: space-between;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--vt-c-gray-100);
   }
 
-  .delivery-header h3 {
+  .card__header-left {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+  }
+
+  .card__icon {
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
     font-size: 0.9rem;
-    font-weight: 600;
-    color: var(--color-text-secondary);
-    margin: 0;
-  }
-
-  .edit-button-wrapper {
-    position: relative;
-  }
-
-  .edit-button {
-    background: #667eea;
-    color: white;
-    border: none;
-    padding: 0.5rem 0.75rem;
-    border-radius: 6px;
-    font-size: 0.75rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition:
-      background 0.2s,
-      transform 0.2s;
-  }
-
-  .edit-button:hover:not(:disabled) {
-    background: #5a67d8;
-    transform: translateY(-1px);
-  }
-
-  .edit-button:active:not(:disabled) {
-    transform: translateY(0);
-  }
-
-  .edit-button-disabled {
-    background: #d1d5db;
-    color: #9ca3af;
-    cursor: not-allowed;
-  }
-
-  .delivery-info {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-
-  .info-row {
-    display: flex;
-    align-items: flex-start;
-    gap: 0.5rem;
-  }
-
-  .info-icon {
-    font-size: 1rem;
     flex-shrink: 0;
   }
 
-  .info-text {
-    color: var(--color-text-secondary);
-    font-size: 0.875rem;
-    line-height: 1.4;
+  .card__icon--indigo {
+    background: var(--_accent-bg);
+    color: var(--_accent);
   }
 
-  .edit-notice {
-    font-size: 0.75rem;
-    color: var(--color-text-placeholder);
-    margin: 0.75rem 0 0 0;
-    padding-top: 0.75rem;
-    border-top: 1px solid var(--border-light);
-    text-align: center;
+  .card__icon--green {
+    background: color-mix(in srgb, var(--color-success) 10%, transparent);
+    color: var(--color-success);
   }
 
-  .order-summary-card {
-    background: var(--bg-white);
-    border-radius: 12px;
-    padding: 1rem;
-    margin-top: 1rem;
-    box-shadow: 0 1px 3px var(--shadow-light);
-    border: 1px solid var(--border-light);
-  }
-
-  .summary-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 0.75rem;
-  }
-
-  .summary-header h3 {
-    font-size: 0.9rem;
+  .card__title {
+    font-size: 0.9375rem;
     font-weight: 600;
-    color: var(--color-text-secondary);
+    color: var(--vt-c-gray-900);
     margin: 0;
   }
 
-  .summary-content {
+  /* =============================================
+   ALERT BANNERS
+   ============================================= */
+  .alert {
+    border-radius: var(--radius-card);
+    border: 1px solid transparent;
+    padding: 1rem 1.25rem;
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 0.875rem;
+    box-shadow: var(--shadow-card);
+  }
+
+  .alert__body {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.875rem;
+  }
+
+  .alert__icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    flex-shrink: 0;
+  }
+
+  .alert__text {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .alert__title {
+    display: block;
+    font-size: 0.9375rem;
+    font-weight: 700;
+    color: var(--vt-c-gray-900);
+    margin-bottom: 0.25rem;
+  }
+
+  .alert__desc {
+    font-size: 0.875rem;
+    color: var(--color-text-secondary);
+    margin: 0;
+    line-height: 1.55;
+  }
+
+  .alert__location-error {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    margin: 0.375rem 0 0 0;
+    font-size: 0.8125rem;
+    color: var(--color-warning-dark);
+    font-weight: 500;
+  }
+
+  /* Alert — pay (success/green tones) */
+  .alert--pay {
+    background: color-mix(in srgb, var(--color-success) 10%, transparent);
+    border-color: var(--vt-c-success-lighter);
+  }
+
+  .alert--pay .alert__icon {
+    background: color-mix(in srgb, var(--color-success) 18%, transparent);
+    color: var(--color-success-dark);
+  }
+
+  /* Alert — paused (warning/amber tones) */
+  .alert--paused {
+    background: color-mix(in srgb, var(--color-warning) 8%, transparent);
+    border-color: var(--vt-c-warning-lighter);
+    border-left: 4px solid var(--color-warning);
+  }
+
+  .alert--paused .alert__icon {
+    background: color-mix(in srgb, var(--color-warning) 22%, transparent);
+    color: var(--color-warning-dark);
+  }
+
+  /* Alert — cancelled (danger/red tones) */
+  .alert--cancelled {
+    background: color-mix(in srgb, var(--color-danger) 6%, transparent);
+    border-color: var(--vt-c-danger-lighter);
+    border-left: 4px solid var(--color-danger);
+  }
+
+  .alert--cancelled .alert__icon {
+    background: color-mix(in srgb, var(--color-danger) 16%, transparent);
+    color: var(--color-danger-dark);
+  }
+
+  /* Alert — modification (orange — between warning and danger) */
+  .alert--modification {
+    background: color-mix(in srgb, var(--color-warning) 12%, transparent);
+    border-color: color-mix(in srgb, var(--color-warning) 55%, transparent);
+    border-left: 4px solid
+      color-mix(in srgb, var(--color-warning) 80%, var(--color-danger) 20%);
+  }
+
+  .alert--modification .alert__icon {
+    background: color-mix(in srgb, var(--color-warning) 30%, transparent);
+    color: color-mix(
+      in srgb,
+      var(--color-warning-dark) 70%,
+      var(--color-danger) 30%
+    );
+  }
+
+  /* =============================================
+   ORDER SUMMARY ROWS
+   ============================================= */
+  .summary-rows {
+    padding: 0.875rem 1.25rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.625rem;
   }
 
   .summary-row {
     display: flex;
-    justify-content: space-between;
     align-items: center;
+    justify-content: space-between;
+    min-height: 28px;
   }
 
-  .summary-label {
-    font-size: 0.875rem;
+  .summary-row__label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
     color: var(--color-text-muted);
   }
 
-  .summary-value {
-    font-size: 0.875rem;
+  .summary-row__badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    background: var(--border-light);
     color: var(--color-text-secondary);
-    font-weight: 500;
-  }
-
-  .summary-total {
-    padding-top: 0.5rem;
-    border-top: 1px solid var(--border-light);
-    margin-top: 0.25rem;
-  }
-
-  .summary-total .summary-label {
-    font-weight: 600;
-    color: var(--color-text-secondary);
-  }
-
-  .total-amount {
-    font-size: 1.125rem;
-    font-weight: 700;
-    color: var(--color-primary);
-  }
-
-  .pending-price-notice {
     font-size: 0.75rem;
-    color: #f59e0b;
-    margin: 0.5rem 0 0 0;
-    padding: 0.5rem;
-    background: #fffbeb;
-    border-radius: 6px;
-    text-align: center;
+    font-weight: 600;
+    border-radius: 10px;
   }
 
-  .view-details-button {
-    background: #f3f4f6;
-    color: #374151;
-    border: 1px solid #e5e7eb;
-    padding: 0.5rem 1rem;
-    border-radius: 6px;
-    font-size: 0.875rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition:
-      background 0.2s,
-      transform 0.2s;
+  .summary-row__value {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--vt-c-gray-900);
   }
 
-  .view-details-button:hover {
-    background: #e5e7eb;
-    transform: translateY(-1px);
-  }
-
-  .view-details-button:active {
-    transform: translateY(0);
-  }
-
-  .app-footer {
-    background: white;
-    padding: 1rem;
-    text-align: center;
-    border-top: 1px solid #e5e7eb;
+  .summary-row__value--muted {
+    font-weight: 400;
+    color: var(--vt-c-gray-400);
     display: flex;
-    flex-direction: column;
+    align-items: center;
+    gap: 0.375rem;
+  }
+
+  .summary-row--total {
+    padding-top: 0.75rem;
+    margin-top: 0.25rem;
+    border-top: 1px solid var(--border-light);
+  }
+
+  .summary-row--total .summary-row__label {
+    font-size: 0.9375rem;
+    font-weight: 700;
+    color: var(--vt-c-gray-900);
+  }
+
+  .summary-row__value--total {
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: var(--_accent);
+  }
+
+  .pending-notice {
+    display: flex;
     align-items: center;
     gap: 0.5rem;
+    margin-top: 0.5rem;
+    padding: 0.625rem 0.875rem;
+    background: color-mix(in srgb, var(--color-warning) 8%, transparent);
+    border: 1px solid color-mix(in srgb, var(--color-warning) 30%, transparent);
+    border-radius: var(--radius-sm);
+    font-size: 0.8125rem;
+    color: var(--color-warning-dark);
   }
 
-  .footer-logo {
-    height: 24px;
-    width: auto;
-    opacity: 0.7;
-  }
-
-  .app-footer p {
-    color: #9ca3af;
-    font-size: 0.875rem;
-    margin: 0;
-  }
-
-  .status-alert {
-    background: white;
-    border-radius: 12px;
-    padding: 1rem;
-    margin-bottom: 1rem;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-    border-left: 4px solid;
-  }
-
-  .alert-paused {
-    border-left-color: #f59e0b;
-    background: #fffbeb;
-  }
-
-  .alert-cancelled {
-    border-left-color: #ef4444;
-    background: #fef2f2;
-  }
-
-  .alert-modification {
-    border-left-color: #f97316;
-    background: #fff7ed;
-  }
-
-  .alert-payment {
-    border-left-color: #3b82f6;
-    background: #eff6ff;
-  }
-
-  .alert-content {
-    display: flex;
-    align-items: flex-start;
-    gap: 0.75rem;
-    margin-bottom: 0.75rem;
-  }
-
-  .alert-icon {
-    font-size: 1.5rem;
+  .pending-notice i {
+    color: var(--color-warning);
     flex-shrink: 0;
   }
 
-  .alert-text {
-    flex: 1;
-  }
-
-  .alert-text strong {
-    display: block;
-    font-size: 0.9rem;
-    font-weight: 600;
-    color: #1f2937;
-    margin-bottom: 0.25rem;
-  }
-
-  .alert-text p {
-    font-size: 0.875rem;
-    color: #4b5563;
-    margin: 0;
-    line-height: 1.5;
-  }
-
-  .alert-button {
-    background: #667eea;
-    color: white;
-    border: none;
-    padding: 0.5rem 1rem;
-    border-radius: 6px;
-    font-size: 0.875rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: background 0.2s;
-    width: 100%;
-  }
-
-  .alert-button:hover {
-    background: #5a67d8;
-  }
-
-  /* Mobile Responsive */
-  @media (max-width: 640px) {
-    .action-buttons {
-      flex-direction: column;
-    }
-
-    .refresh-button,
-    .delivered-button {
-      width: 100%;
-    }
-
-    .delivery-card,
-    .order-summary-card {
-      padding: 0.875rem;
-    }
-
-    .status-alert {
-      padding: 0.875rem;
-    }
-
-    .alert-content {
-      flex-direction: column;
-      gap: 0.5rem;
-    }
-  }
-
-  /* Pay Now Alert */
-  .alert-pay-now {
-    border-left-color: #10b981;
-    background: #ecfdf5;
-  }
-
-  .location-error {
-    margin: 0.375rem 0 0 0;
-    font-size: 0.8rem;
-    color: #b45309;
-    display: flex;
-    align-items: center;
-    gap: 0.25rem;
-  }
-
-  /* Location Reminder Banner */
-  .location-reminder-banner {
+  /* =============================================
+   LOCATION REMINDER BANNER
+   ============================================= */
+  .location-banner {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 0.75rem;
-    background: #fefce8;
-    border: 1px solid #fde68a;
-    border-left: 4px solid #f59e0b;
-    border-radius: 8px;
+    background: color-mix(in srgb, var(--color-warning) 6%, transparent);
+    border: 1px solid color-mix(in srgb, var(--color-warning) 28%, transparent);
+    border-left: 4px solid var(--color-warning);
+    border-radius: 10px;
     padding: 0.75rem 1rem;
-    margin-bottom: 0.75rem;
   }
 
-  .reminder-content {
+  .location-banner__content {
     display: flex;
     align-items: center;
     gap: 0.5rem;
     font-size: 0.875rem;
-    color: #92400e;
+    color: var(--color-warning-dark);
     flex: 1;
+    line-height: 1.4;
   }
 
-  .reminder-content i {
-    color: #f59e0b;
+  .location-banner__icon {
+    color: var(--color-warning);
     flex-shrink: 0;
   }
 
-  .reminder-close {
+  .location-banner__close {
     background: none;
     border: none;
-    color: #b45309;
+    color: var(--color-warning-dark);
     cursor: pointer;
     padding: 0.25rem;
     border-radius: 4px;
-    font-size: 0.875rem;
+    font-size: 0.8125rem;
     flex-shrink: 0;
-    transition: background 0.2s;
+    transition: background var(--transition-fast);
+    line-height: 1;
   }
 
-  .reminder-close:hover {
-    background: #fde68a;
+  .location-banner__close:hover {
+    background: color-mix(in srgb, var(--color-warning) 25%, transparent);
   }
 
-  .pay-button {
-    background: #10b981 !important;
+  /* =============================================
+   DELIVERY DETAILS
+   ============================================= */
+  .delivery-details {
+    padding: 0.875rem 1.25rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.625rem;
   }
 
-  .pay-button:hover {
-    background: #059669 !important;
+  .delivery-details__row {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.625rem;
   }
 
-  /* Payment Modal */
+  .delivery-details__icon {
+    color: var(--vt-c-gray-400);
+    font-size: 0.9rem;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  .delivery-details__text {
+    font-size: 0.9rem;
+    color: var(--color-text-secondary);
+    line-height: 1.45;
+  }
+
+  /* =============================================
+   ACTIONS SECTION
+   ============================================= */
+  .actions-section {
+    padding: 0.25rem 0 0.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .actions-section__buttons {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    justify-content: center;
+    width: 100%;
+  }
+
+  .actions-section__timestamp {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    font-size: 0.8125rem;
+    color: var(--vt-c-gray-400);
+    margin: 0;
+  }
+
+  .actions-section__timestamp i {
+    font-size: 0.8rem;
+  }
+
+  /* =============================================
+   BUTTON SYSTEM
+   ============================================= */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4375rem;
+    border: none;
+    border-radius: var(--radius-btn);
+    font-family: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    transition:
+      background var(--transition-fast),
+      transform var(--transition-fast),
+      box-shadow var(--transition-fast),
+      opacity var(--transition-fast);
+    text-decoration: none;
+    white-space: nowrap;
+  }
+
+  .btn--sm {
+    padding: 0.5rem 1rem;
+    font-size: 0.8125rem;
+  }
+  .btn--md {
+    padding: 0.6875rem 1.25rem;
+    font-size: 0.9rem;
+  }
+
+  .btn--primary {
+    background: var(--_accent);
+    color: var(--color-text-white);
+  }
+  .btn--primary:hover:not(:disabled) {
+    background: var(--_accent-dark);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px color-mix(in srgb, var(--_accent) 35%, transparent);
+  }
+
+  .btn--pay {
+    background: var(--color-success);
+    color: var(--color-text-white);
+  }
+  .btn--pay:hover:not(:disabled) {
+    background: var(--color-success-dark);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px
+      color-mix(in srgb, var(--color-success) 35%, transparent);
+  }
+
+  .btn--delivered {
+    background: var(--_accent);
+    color: var(--color-text-white);
+  }
+  .btn--delivered:hover:not(:disabled) {
+    background: var(--_accent-dark);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px color-mix(in srgb, var(--_accent) 35%, transparent);
+  }
+
+  .btn--outline {
+    background: var(--surface-card);
+    color: var(--color-text-secondary);
+    border: 1px solid var(--border-default);
+  }
+  .btn--outline:hover:not(:disabled) {
+    background: var(--surface-hover);
+    border-color: var(--vt-c-gray-400);
+  }
+
+  .btn--ghost {
+    background: var(--vt-c-gray-100);
+    color: var(--color-text-secondary);
+    border: 1px solid var(--border-light);
+  }
+  .btn--ghost:hover:not(:disabled) {
+    background: var(--border-light);
+  }
+
+  .btn:disabled,
+  .btn--disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    transform: none !important;
+    box-shadow: none !important;
+  }
+
+  .btn--loading {
+    pointer-events: none;
+  }
+
+  .btn--flex2 {
+    flex: 2;
+  }
+
+  .btn:active:not(:disabled) {
+    transform: translateY(0) !important;
+  }
+
+  /* =============================================
+   INLINE SPINNER
+   ============================================= */
+  .inline-spinner {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border: 2px solid color-mix(in srgb, var(--_accent) 25%, transparent);
+    border-top-color: var(--_accent);
+    border-radius: 50%;
+    animation: loading-ring-spin 0.7s linear infinite;
+    flex-shrink: 0;
+  }
+
+  .inline-spinner--white {
+    border-color: rgba(255, 255, 255, 0.3);
+    border-top-color: var(--color-text-white);
+  }
+
+  /* =============================================
+   FOOTER
+   ============================================= */
+  .app-footer {
+    background: var(--surface-card);
+    padding: 1rem 1.25rem;
+    text-align: center;
+    border-top: 1px solid var(--border-light);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.375rem;
+  }
+
+  .app-footer__logo {
+    height: 22px;
+    width: auto;
+    opacity: 0.6;
+  }
+
+  .app-footer__text {
+    color: var(--vt-c-gray-400);
+    font-size: 0.8125rem;
+    margin: 0;
+  }
+
+  /* =============================================
+   MODAL OVERLAY
+   ============================================= */
   .modal-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.5);
+    background: color-mix(in srgb, var(--vt-c-gray-900) 55%, transparent);
     display: flex;
     align-items: center;
     justify-content: center;
     z-index: 1000;
     padding: 1rem;
+    backdrop-filter: blur(2px);
   }
 
+  /* =============================================
+   PAYMENT MODAL
+   ============================================= */
   .payment-modal {
-    background: white;
-    border-radius: 16px;
-    padding: 1.5rem;
+    background: var(--surface-card);
+    border-radius: var(--radius-xl);
     width: 100%;
     max-width: 420px;
-    box-shadow: 0 25px 50px rgba(0, 0, 0, 0.2);
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: var(--shadow-modal);
+    animation: modal-enter 0.25s ease both;
   }
 
-  .payment-modal-header {
+  @keyframes modal-enter {
+    from {
+      opacity: 0;
+      transform: translateY(16px) scale(0.98);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  .payment-modal__header {
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    margin-bottom: 1.5rem;
+    justify-content: space-between;
+    padding: 1.25rem 1.5rem 1rem;
+    border-bottom: 1px solid var(--vt-c-gray-100);
   }
 
-  .payment-modal-header h2 {
-    font-size: 1.25rem;
+  .payment-modal__title-group {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+  }
+
+  .payment-modal__title-icon {
+    width: 34px;
+    height: 34px;
+    background: var(--_accent-bg);
+    color: var(--_accent);
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.95rem;
+  }
+
+  .payment-modal__title {
+    font-size: 1.0625rem;
     font-weight: 700;
-    color: #1f2937;
+    color: var(--vt-c-gray-900);
     margin: 0;
   }
 
-  .close-btn {
+  .modal-close-btn {
+    background: var(--vt-c-gray-100);
+    border: none;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.875rem;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    transition:
+      background var(--transition-fast),
+      color var(--transition-fast);
+  }
+
+  .modal-close-btn:hover {
+    background: var(--border-light);
+    color: var(--vt-c-gray-900);
+  }
+
+  /* No cards options */
+  .no-cards-options {
+    padding: 1rem 1.5rem 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .no-cards-option {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    border: 1px solid var(--border-light);
+    border-radius: 10px;
+    cursor: pointer;
+    transition:
+      background var(--transition-fast),
+      border-color var(--transition-fast),
+      box-shadow var(--transition-fast);
+  }
+
+  .no-cards-option:hover {
+    background: var(--surface-hover);
+    border-color: var(--_accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--_accent) 8%, transparent);
+  }
+
+  .no-cards-option__icon {
+    width: 38px;
+    height: 38px;
+    background: var(--_accent-bg);
+    color: var(--_accent);
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    flex-shrink: 0;
+  }
+
+  .no-cards-option__text {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+  }
+
+  .no-cards-option__text strong {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--vt-c-gray-900);
+  }
+
+  .no-cards-option__text span {
+    font-size: 0.8rem;
+    color: var(--color-text-muted);
+  }
+
+  .no-cards-option__arrow {
+    font-size: 0.8125rem;
+    color: var(--vt-c-gray-400);
+  }
+
+  .no-cards-divider {
+    position: relative;
+    text-align: center;
+    margin: 0.75rem 0;
+  }
+
+  .no-cards-divider::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: var(--border-light);
+  }
+
+  .no-cards-divider span {
+    position: relative;
+    background: var(--surface-card);
+    padding: 0 0.75rem;
+    font-size: 0.8rem;
+    color: var(--vt-c-gray-400);
+    font-weight: 500;
+  }
+
+  .generating-text {
+    font-size: 0.8rem;
+    color: var(--_accent);
+    font-weight: 500;
+  }
+
+  /* Payment Tabs */
+  .payment-tabs {
+    display: flex;
+    border-bottom: 2px solid var(--border-light);
+    margin: 0 1.5rem;
+  }
+
+  .payment-tab {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.375rem;
+    padding: 0.875rem 0.75rem;
     background: none;
     border: none;
-    font-size: 1.25rem;
-    color: #9ca3af;
-    cursor: pointer;
-    padding: 0.25rem;
-    border-radius: 4px;
-    transition: color 0.2s;
-  }
-
-  .close-btn:hover {
-    color: #374151;
-  }
-
-  .payment-form .form-group {
-    margin-bottom: 1.25rem;
-  }
-
-  .payment-form label {
-    display: block;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
     font-size: 0.875rem;
     font-weight: 500;
-    color: #374151;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    transition:
+      color var(--transition-fast),
+      border-color var(--transition-fast);
+  }
+
+  .payment-tab--active {
+    color: var(--_accent);
+    border-bottom-color: var(--_accent);
+  }
+
+  .payment-tab:hover:not(.payment-tab--active) {
+    color: var(--color-text-secondary);
+  }
+
+  /* Payment Form */
+  .payment-form {
+    padding: 1.25rem 1.5rem 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .form-field__label {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--color-text-secondary);
     margin-bottom: 0.5rem;
+  }
+
+  .form-field__required {
+    color: var(--color-danger);
+    margin-left: 2px;
   }
 
   .card-options {
@@ -1463,289 +1848,223 @@
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    padding: 0.75rem;
-    border: 2px solid #e5e7eb;
-    border-radius: 8px;
-    cursor: pointer;
-    transition:
-      border-color 0.2s,
-      background 0.2s;
-  }
-
-  .card-option.selected {
-    border-color: #667eea;
-    background: #f5f3ff;
-  }
-
-  .card-option i {
-    color: #667eea;
-    font-size: 1.25rem;
-  }
-
-  .card-option span {
-    font-weight: 500;
-    color: #1f2937;
-    flex: 1;
-  }
-
-  .card-option small {
-    font-size: 0.75rem;
-    color: #6b7280;
-  }
-
-  .cvv-input {
-    width: 100%;
-    padding: 0.75rem;
-    border: 1px solid #d1d5db;
-    border-radius: 8px;
-    font-size: 1rem;
-    transition: border-color 0.2s;
-  }
-
-  .cvv-input:focus {
-    outline: none;
-    border-color: #667eea;
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-  }
-
-  .payment-error {
-    background: #fee2e2;
-    border: 1px solid #fca5a5;
-    color: #991b1b;
-    padding: 0.75rem;
-    border-radius: 6px;
-    margin-bottom: 1rem;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-size: 0.875rem;
-  }
-
-  .payment-modal-actions {
-    display: flex;
-    gap: 0.75rem;
-    margin-top: 1.5rem;
-  }
-
-  .btn-cancel {
-    flex: 1;
-    padding: 0.75rem;
-    background: white;
-    border: 1px solid #d1d5db;
-    border-radius: 8px;
-    font-weight: 600;
-    color: #374151;
-    cursor: pointer;
-    transition: background 0.2s;
-  }
-
-  .btn-cancel:hover:not(:disabled) {
-    background: #f9fafb;
-  }
-
-  .btn-pay {
-    flex: 2;
-    padding: 0.75rem;
-    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-    border: none;
-    border-radius: 8px;
-    font-weight: 600;
-    color: white;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    transition: opacity 0.2s;
-  }
-
-  .btn-pay:hover:not(:disabled) {
-    opacity: 0.9;
-  }
-
-  .btn-pay:disabled,
-  .btn-cancel:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
-
-  .no-payment-methods {
-    text-align: center;
-    padding: 1.5rem 0;
-    color: #6b7280;
-  }
-
-  .no-payment-methods i {
-    font-size: 2.5rem;
-    color: #d1d5db;
-    margin-bottom: 0.75rem;
-    display: block;
-  }
-
-  .add-card-btn {
-    margin-top: 1rem;
-    background: #667eea;
-    color: white;
-    border: none;
-    padding: 0.75rem 1.5rem;
-    border-radius: 8px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background 0.2s;
-  }
-
-  .add-card-btn:hover {
-    background: #5a67d8;
-  }
-
-  /* No cards options */
-  .no-cards-options {
-    padding: 0.5rem 0;
-  }
-
-  .no-cards-option {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    padding: 1rem;
-    border: 1px solid #e5e7eb;
+    padding: 0.75rem 1rem;
+    border: 1.5px solid var(--border-light);
     border-radius: 10px;
     cursor: pointer;
     transition:
-      background 0.15s,
-      border-color 0.15s;
+      border-color var(--transition-fast),
+      background var(--transition-fast),
+      box-shadow var(--transition-fast);
   }
 
-  .no-cards-option:hover {
-    background: #f9fafb;
-    border-color: #667eea;
+  .card-option--selected {
+    border-color: var(--_accent);
+    background: var(--_accent-bg);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--_accent) 10%, transparent);
   }
 
-  .no-cards-option > i:first-child {
-    font-size: 1.4rem;
-    color: #667eea;
-    flex-shrink: 0;
-  }
-
-  .no-cards-option > i:last-child {
-    font-size: 0.875rem;
-    color: #9ca3af;
-    margin-left: auto;
-  }
-
-  .no-cards-option > div {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 0.15rem;
-  }
-
-  .no-cards-option strong {
-    font-size: 0.9rem;
-    color: #111827;
-  }
-
-  .no-cards-option span {
-    font-size: 0.775rem;
-    color: #6b7280;
-  }
-
-  .no-cards-divider {
-    text-align: center;
-    color: #9ca3af;
-    font-size: 0.8rem;
-    margin: 0.6rem 0;
-  }
-
-  .generating-text {
-    font-size: 0.8rem;
-    color: #667eea;
-    margin-left: auto;
-  }
-
-  .use-link-btn {
-    margin-top: 0.5rem;
-    background: none;
-    border: 1px solid #667eea;
-    color: #667eea;
-    padding: 0.6rem 1.5rem;
-    border-radius: 8px;
-    font-weight: 500;
-    cursor: pointer;
-    transition:
-      background 0.2s,
-      color 0.2s;
-    width: 100%;
-  }
-
-  .use-link-btn:hover {
-    background: #f5f3ff;
-  }
-
-  /* Payment Tabs */
-  .payment-tabs {
-    display: flex;
-    gap: 0.5rem;
-    margin-bottom: 1.25rem;
-    border-bottom: 2px solid #e5e7eb;
-    padding-bottom: 0;
-  }
-
-  .payment-tab {
-    flex: 1;
+  .card-option__icon {
+    width: 32px;
+    height: 32px;
+    background: var(--vt-c-gray-100);
+    border-radius: 6px;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 0.4rem;
-    padding: 0.6rem 0.75rem;
-    background: none;
-    border: none;
-    border-bottom: 2px solid transparent;
-    margin-bottom: -2px;
-    font-size: 0.875rem;
-    font-weight: 500;
-    color: #6b7280;
-    cursor: pointer;
+    font-size: 0.9rem;
+    color: var(--_accent);
+    flex-shrink: 0;
+  }
+
+  .card-option--selected .card-option__icon {
+    background: var(--_accent-bg-md);
+  }
+
+  .card-option__number {
+    font-weight: 600;
+    color: var(--vt-c-gray-900);
+    flex: 1;
+    font-size: 0.9rem;
+    letter-spacing: 0.05em;
+  }
+
+  .card-option__holder {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+  }
+
+  .card-option__check {
+    width: 20px;
+    height: 20px;
+    background: var(--_accent);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-text-white);
+    font-size: 0.65rem;
+    flex-shrink: 0;
+  }
+
+  .form-field__input {
+    width: 100%;
+    padding: 0.6875rem 0.875rem;
+    border: 1.5px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    font-size: 1rem;
+    color: var(--vt-c-gray-900);
+    background: var(--surface-card);
     transition:
-      color 0.2s,
-      border-color 0.2s;
+      border-color var(--transition-fast),
+      box-shadow var(--transition-fast);
+    box-sizing: border-box;
   }
 
-  .payment-tab.active {
-    color: #667eea;
-    border-bottom-color: #667eea;
+  .form-field__input:focus {
+    outline: none;
+    border-color: var(--_accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--_accent) 12%, transparent);
   }
 
-  .payment-tab:hover:not(.active) {
-    color: #374151;
+  .form-field__input:disabled {
+    background: var(--surface-hover);
+    color: var(--vt-c-gray-400);
+    cursor: not-allowed;
   }
 
-  /* Payment Link Tab */
+  .payment-error {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    background: color-mix(in srgb, var(--color-danger) 6%, transparent);
+    border: 1px solid var(--vt-c-danger-lighter);
+    border-radius: var(--radius-sm);
+    font-size: 0.875rem;
+    color: var(--color-danger-dark);
+  }
+
+  .payment-error i {
+    flex-shrink: 0;
+  }
+
+  .payment-modal__actions {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 0.5rem;
+  }
+
+  .payment-modal__actions .btn {
+    flex: 1;
+  }
+
+  /* Payment Link Section */
   .payment-link-section {
-    padding-top: 0.5rem;
+    padding: 1.25rem 1.5rem 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
   }
 
   .payment-link-info {
     text-align: center;
-    padding: 1rem 0;
+    padding: 1.25rem 0.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
   }
 
-  .payment-link-icon {
-    font-size: 2.5rem;
-    color: #667eea;
-    display: block;
-    margin-bottom: 0.75rem;
+  .payment-link-info__icon {
+    width: 56px;
+    height: 56px;
+    background: var(--_accent-bg);
+    color: var(--_accent);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
   }
 
-  .payment-link-info p {
-    font-size: 0.9rem;
-    color: #374151;
-    margin: 0 0 0.5rem 0;
-    line-height: 1.5;
+  .payment-link-info__desc {
+    font-size: 0.9375rem;
+    color: var(--color-text-secondary);
+    margin: 0;
+    line-height: 1.55;
+    max-width: 300px;
   }
 
-  .payment-link-note {
-    font-size: 0.8rem !important;
-    color: #6b7280 !important;
+  .payment-link-info__note {
+    font-size: 0.8125rem;
+    color: var(--vt-c-gray-400);
+    margin: 0;
+    line-height: 1.4;
+  }
+
+  /* =============================================
+   RESPONSIVE
+   ============================================= */
+  @media (max-width: 640px) {
+    .actions-section__buttons {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .actions-section__buttons .btn {
+      width: 100%;
+    }
+
+    .alert {
+      padding: 0.875rem 1rem;
+    }
+
+    .card__header {
+      padding: 0.875rem 1rem;
+    }
+
+    .summary-rows {
+      padding: 0.75rem 1rem 0.875rem;
+    }
+
+    .delivery-details {
+      padding: 0.75rem 1rem 0.875rem;
+    }
+
+    .payment-modal {
+      border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      max-width: 100%;
+      max-height: 92vh;
+    }
+
+    .modal-overlay {
+      align-items: flex-end;
+      padding: 0;
+    }
+
+    .payment-tabs {
+      margin: 0 1rem;
+    }
+
+    .payment-form {
+      padding: 1rem;
+    }
+
+    .payment-link-section {
+      padding: 1rem;
+    }
+
+    .no-cards-options {
+      padding: 1rem;
+    }
+
+    .payment-modal__header {
+      padding: 1rem 1rem 0.875rem;
+    }
   }
 </style>

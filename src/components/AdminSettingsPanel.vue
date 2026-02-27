@@ -113,36 +113,53 @@ onMounted(() => {
 
 <template>
   <div class="settings-panel">
-    <!-- Loading -->
-    <div v-if="loading" class="loading">
-      <div class="spinner"></div>
-      <p>Cargando configuración...</p>
+
+    <!-- Loading State -->
+    <div v-if="loading" class="state-loading">
+      <div class="state-loading__spinner"></div>
+      <p class="text-gray-500">Cargando configuración...</p>
     </div>
 
-    <!-- Error -->
-    <div v-else-if="error && !settings" class="error-message">
-      {{ error }}
-      <button @click="fetchSettings">Reintentar</button>
+    <!-- Fatal Error State -->
+    <div v-else-if="error && !settings" class="state-error card-modern">
+      <div class="state-error__icon-wrap">
+        <i class="pi pi-exclamation-circle text-danger"></i>
+      </div>
+      <p class="state-error__message text-danger">{{ error }}</p>
+      <button class="action-btn action-btn--primary" @click="fetchSettings">
+        <i class="pi pi-refresh"></i> Reintentar
+      </button>
     </div>
 
     <!-- Settings Form -->
-    <form v-else @submit.prevent="saveSettings" class="settings-form">
-      <!-- Success Message -->
-      <div v-if="successMessage" class="success-message">
-        {{ successMessage }}
+    <form v-else @submit.prevent="saveSettings" class="settings-form" novalidate>
+
+      <!-- Toast: Success -->
+      <div v-if="successMessage" class="toast toast--success" role="status" aria-live="polite">
+        <i class="pi pi-check-circle toast__icon"></i>
+        <span>{{ successMessage }}</span>
       </div>
 
-      <!-- Error Message -->
-      <div v-if="error" class="error-alert">
-        {{ error }}
+      <!-- Toast: Error -->
+      <div v-if="error" class="toast toast--danger" role="alert">
+        <i class="pi pi-times-circle toast__icon"></i>
+        <span>{{ error }}</span>
       </div>
 
-      <!-- Business Info Section -->
-      <section class="form-section">
-        <h3>Información del Negocio</h3>
+      <!-- Section: Business Info -->
+      <section class="settings-section card-modern">
+        <div class="settings-section__header">
+          <div class="settings-section__icon-wrap settings-section__icon-wrap--primary">
+            <i class="pi pi-building"></i>
+          </div>
+          <div>
+            <h3 class="settings-section__title">Información del Negocio</h3>
+            <p class="settings-section__desc text-gray-500">Datos generales de tu establecimiento.</p>
+          </div>
+        </div>
 
         <div class="form-group">
-          <label for="business_name">Nombre del Negocio</label>
+          <label class="form-label" for="business_name">Nombre del Negocio</label>
           <input
             id="business_name"
             v-model="form.business_name"
@@ -153,114 +170,106 @@ onMounted(() => {
         </div>
       </section>
 
-      <!-- Business Location Section -->
-      <section class="form-section">
-        <h3>Ubicación del Negocio</h3>
-        <p class="section-description">Esta es la ubicación desde donde se calculará la distancia de envío.</p>
-
-        <div class="form-row">
-          <div class="form-group">
-            <label for="business_latitude">Latitud</label>
-            <input
-              id="business_latitude"
-              v-model.number="form.business_latitude"
-              type="number"
-              step="0.000001"
-              class="form-input"
-            />
+      <!-- Section: Business Location -->
+      <section class="settings-section card-modern">
+        <div class="settings-section__header">
+          <div class="settings-section__icon-wrap settings-section__icon-wrap--info">
+            <i class="pi pi-map-marker"></i>
           </div>
-          <div class="form-group">
-            <label for="business_longitude">Longitud</label>
-            <input
-              id="business_longitude"
-              v-model.number="form.business_longitude"
-              type="number"
-              step="0.000001"
-              class="form-input"
-            />
+          <div>
+            <h3 class="settings-section__title">Ubicación del Negocio</h3>
+            <p class="settings-section__desc text-gray-500">Punto de origen para calcular distancias de envío.</p>
           </div>
         </div>
 
-        <button type="button" class="btn-secondary" @click="useCurrentLocation('business')">
-          <i class="pi pi-map-marker"></i> Usar mi ubicación actual
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="business_latitude">Latitud</label>
+            <input id="business_latitude" v-model.number="form.business_latitude" type="number" step="0.000001" class="form-input" />
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="business_longitude">Longitud</label>
+            <input id="business_longitude" v-model.number="form.business_longitude" type="number" step="0.000001" class="form-input" />
+          </div>
+        </div>
+
+        <button type="button" class="action-btn action-btn--ghost" @click="useCurrentLocation('business')">
+          <i class="pi pi-crosshairs"></i> Usar mi ubicación actual
         </button>
       </section>
 
-      <!-- Default Map Section -->
-      <section class="form-section">
-        <h3>Mapa por Defecto (para usuarios)</h3>
-        <p class="section-description">Punto inicial que verán los usuarios al agregar su dirección.</p>
+      <!-- Section: Default Map -->
+      <section class="settings-section card-modern">
+        <div class="settings-section__header">
+          <div class="settings-section__icon-wrap settings-section__icon-wrap--info">
+            <i class="pi pi-map"></i>
+          </div>
+          <div>
+            <h3 class="settings-section__title">Mapa por Defecto</h3>
+            <p class="settings-section__desc text-gray-500">Punto inicial que verán los usuarios al agregar su dirección.</p>
+          </div>
+        </div>
 
         <div class="form-row">
           <div class="form-group">
-            <label for="default_map_latitude">Latitud</label>
-            <input
-              id="default_map_latitude"
-              v-model.number="form.default_map_latitude"
-              type="number"
-              step="0.000001"
-              class="form-input"
-            />
+            <label class="form-label" for="default_map_latitude">Latitud</label>
+            <input id="default_map_latitude" v-model.number="form.default_map_latitude" type="number" step="0.000001" class="form-input" />
           </div>
           <div class="form-group">
-            <label for="default_map_longitude">Longitud</label>
-            <input
-              id="default_map_longitude"
-              v-model.number="form.default_map_longitude"
-              type="number"
-              step="0.000001"
-              class="form-input"
-            />
+            <label class="form-label" for="default_map_longitude">Longitud</label>
+            <input id="default_map_longitude" v-model.number="form.default_map_longitude" type="number" step="0.000001" class="form-input" />
           </div>
           <div class="form-group">
-            <label for="default_map_zoom">Zoom</label>
-            <input
-              id="default_map_zoom"
-              v-model.number="form.default_map_zoom"
-              type="number"
-              min="1"
-              max="20"
-              class="form-input"
-            />
+            <label class="form-label" for="default_map_zoom">Zoom</label>
+            <input id="default_map_zoom" v-model.number="form.default_map_zoom" type="number" min="1" max="20" class="form-input" />
           </div>
         </div>
 
-        <div class="button-group">
-          <button type="button" class="btn-secondary" @click="useCurrentLocation('default_map')">
-            <i class="pi pi-map-marker"></i> Usar mi ubicación actual
+        <div class="btn-group">
+          <button type="button" class="action-btn action-btn--ghost" @click="useCurrentLocation('default_map')">
+            <i class="pi pi-crosshairs"></i> Usar mi ubicación
           </button>
-          <button type="button" class="btn-secondary" @click="copyBusinessToDefault">
-            📋 Copiar ubicación del negocio
+          <button type="button" class="action-btn action-btn--ghost" @click="copyBusinessToDefault">
+            <i class="pi pi-copy"></i> Copiar del negocio
           </button>
         </div>
       </section>
 
-      <!-- Weight Settings Section -->
-      <section class="form-section">
-        <h3>Peso de Productos</h3>
+      <!-- Section: Weight -->
+      <section class="settings-section card-modern">
+        <div class="settings-section__header">
+          <div class="settings-section__icon-wrap settings-section__icon-wrap--warning">
+            <i class="pi pi-box"></i>
+          </div>
+          <div>
+            <h3 class="settings-section__title">Peso de Productos</h3>
+            <p class="settings-section__desc text-gray-500">Valor usado cuando un producto no tiene peso especificado.</p>
+          </div>
+        </div>
 
         <div class="form-group">
-          <label for="default_item_weight">Peso por defecto (gramos)</label>
-          <input
-            id="default_item_weight"
-            v-model.number="form.default_item_weight"
-            type="number"
-            min="0"
-            class="form-input"
-          />
-          <span class="input-hint">Se usa cuando un producto no tiene peso especificado</span>
+          <label class="form-label" for="default_item_weight">Peso por defecto (gramos)</label>
+          <input id="default_item_weight" v-model.number="form.default_item_weight" type="number" min="0" class="form-input" />
+          <span class="form-hint text-gray-400">Se aplica a ítems sin peso definido.</span>
         </div>
       </section>
 
-      <!-- Manager Account Section -->
-      <section class="form-section">
-        <h3>Cuenta del Manager</h3>
-        <p class="section-description">
-          ID de cuenta de MercadoPago (Collector ID) donde se acreditarán los pagos de las órdenes entregadas.
-        </p>
+      <!-- Section: Manager Account -->
+      <section class="settings-section card-modern">
+        <div class="settings-section__header">
+          <div class="settings-section__icon-wrap settings-section__icon-wrap--primary">
+            <i class="pi pi-credit-card"></i>
+          </div>
+          <div>
+            <h3 class="settings-section__title">Cuenta del Manager</h3>
+            <p class="settings-section__desc text-gray-500">
+              Collector ID de MercadoPago donde se acreditarán los pagos de órdenes entregadas.
+            </p>
+          </div>
+        </div>
 
         <div class="form-group">
-          <label for="manager_collector_id">Collector ID de MercadoPago</label>
+          <label class="form-label" for="manager_collector_id">Collector ID de MercadoPago</label>
           <input
             id="manager_collector_id"
             v-model="form.manager_collector_id"
@@ -268,77 +277,80 @@ onMounted(() => {
             placeholder="Ej: 123456789"
             class="form-input"
           />
-          <span class="input-hint">Este ID se obtiene de tu cuenta de MercadoPago</span>
+          <span class="form-hint text-gray-400">Obtenible desde el panel de tu cuenta MercadoPago.</span>
         </div>
       </section>
 
-      <!-- Delivery Pricing Section -->
-      <section class="form-section">
-        <h3>Tarifas de Envío</h3>
-        <p class="section-description">
-          Fórmula: <strong>Precio Base + (Distancia × Precio/km) + (Peso × Precio/kg)</strong>
-        </p>
+      <!-- Section: Delivery Pricing -->
+      <section class="settings-section card-modern">
+        <div class="settings-section__header">
+          <div class="settings-section__icon-wrap settings-section__icon-wrap--success">
+            <i class="pi pi-truck"></i>
+          </div>
+          <div>
+            <h3 class="settings-section__title">Tarifas de Envío</h3>
+            <p class="settings-section__desc text-gray-500">
+              Fórmula: <strong>Base + (Distancia x Precio/km) + (Peso x Precio/kg)</strong>
+            </p>
+          </div>
+        </div>
 
         <div class="form-row pricing-row">
           <div class="form-group">
-            <label for="delivery_base_price">Precio Base</label>
-            <div class="input-with-prefix">
-              <span class="input-prefix">$</span>
-              <input
-                id="delivery_base_price"
-                v-model.number="form.delivery_base_price"
-                type="number"
-                min="0"
-                class="form-input"
-              />
+            <label class="form-label" for="delivery_base_price">Precio Base</label>
+            <div class="input-prefixed">
+              <span class="input-prefix text-gray-500">$</span>
+              <input id="delivery_base_price" v-model.number="form.delivery_base_price" type="number" min="0" class="form-input" />
             </div>
           </div>
           <div class="form-group">
-            <label for="delivery_price_per_km">Precio por Km</label>
-            <div class="input-with-prefix">
-              <span class="input-prefix">$</span>
-              <input
-                id="delivery_price_per_km"
-                v-model.number="form.delivery_price_per_km"
-                type="number"
-                min="0"
-                class="form-input"
-              />
+            <label class="form-label" for="delivery_price_per_km">Por Km</label>
+            <div class="input-prefixed">
+              <span class="input-prefix text-gray-500">$</span>
+              <input id="delivery_price_per_km" v-model.number="form.delivery_price_per_km" type="number" min="0" class="form-input" />
             </div>
           </div>
           <div class="form-group">
-            <label for="delivery_price_per_kg">Precio por Kg</label>
-            <div class="input-with-prefix">
-              <span class="input-prefix">$</span>
-              <input
-                id="delivery_price_per_kg"
-                v-model.number="form.delivery_price_per_kg"
-                type="number"
-                min="0"
-                class="form-input"
-              />
+            <label class="form-label" for="delivery_price_per_kg">Por Kg</label>
+            <div class="input-prefixed">
+              <span class="input-prefix text-gray-500">$</span>
+              <input id="delivery_price_per_kg" v-model.number="form.delivery_price_per_kg" type="number" min="0" class="form-input" />
             </div>
           </div>
         </div>
 
-        <!-- Example calculation -->
-        <div class="example-box">
-          <h4>Ejemplo de cálculo</h4>
-          <p>
-            Para un pedido de <strong>2 kg</strong> a <strong>5 km</strong> de distancia:
+        <!-- Example Calculation -->
+        <div class="calc-example">
+          <p class="calc-example__heading text-gray-600">
+            <i class="pi pi-calculator"></i> Ejemplo: pedido de 2 kg a 5 km
           </p>
-          <ul>
-            <li>Precio base: {{ formatPrice(form.delivery_base_price) }}</li>
-            <li>Distancia (5 km × {{ formatPrice(form.delivery_price_per_km) }}): {{ formatPrice(5 * form.delivery_price_per_km) }}</li>
-            <li>Peso (2 kg × {{ formatPrice(form.delivery_price_per_kg) }}): {{ formatPrice(2 * form.delivery_price_per_kg) }}</li>
-            <li><strong>Total: {{ formatPrice(form.delivery_base_price + (5 * form.delivery_price_per_km) + (2 * form.delivery_price_per_kg)) }}</strong></li>
-          </ul>
+          <div class="calc-example__rows">
+            <div class="calc-example__row">
+              <span class="text-gray-500">Precio base</span>
+              <span class="text-gray-700">{{ formatPrice(form.delivery_base_price) }}</span>
+            </div>
+            <div class="calc-example__row">
+              <span class="text-gray-500">Distancia (5 km x {{ formatPrice(form.delivery_price_per_km) }})</span>
+              <span class="text-gray-700">{{ formatPrice(5 * form.delivery_price_per_km) }}</span>
+            </div>
+            <div class="calc-example__row">
+              <span class="text-gray-500">Peso (2 kg x {{ formatPrice(form.delivery_price_per_kg) }})</span>
+              <span class="text-gray-700">{{ formatPrice(2 * form.delivery_price_per_kg) }}</span>
+            </div>
+            <div class="calc-example__row calc-example__row--total">
+              <span class="text-gray-800">Total estimado</span>
+              <span class="text-primary">
+                {{ formatPrice(form.delivery_base_price + (5 * form.delivery_price_per_km) + (2 * form.delivery_price_per_kg)) }}
+              </span>
+            </div>
+          </div>
         </div>
       </section>
 
-      <!-- Submit Button -->
+      <!-- Submit -->
       <div class="form-actions">
-        <button type="submit" class="btn-primary" :disabled="saving">
+        <button type="submit" class="action-btn action-btn--primary action-btn--lg" :disabled="saving">
+          <i class="pi" :class="saving ? 'pi-spin pi-spinner' : 'pi-save'"></i>
           {{ saving ? 'Guardando...' : 'Guardar Configuración' }}
         </button>
       </div>
@@ -352,130 +364,195 @@ onMounted(() => {
   margin: 0 auto;
 }
 
-.loading {
+/* Loading */
+.state-loading {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 3rem;
+  gap: var(--spacing-md);
+  padding: var(--spacing-2xl);
 }
 
-.spinner {
-  width: 40px;
-  height: 40px;
-  border: 3px solid #e2e8f0;
-  border-top-color: #667eea;
+.state-loading__spinner {
+  width: 2.5rem;
+  height: 2.5rem;
+  border: 3px solid var(--border-light);
+  border-top-color: var(--color-primary);
   border-radius: 50%;
-  animation: spin 1s linear infinite;
+  animation: spin 0.9s linear infinite;
 }
 
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
 
-.error-message {
+/* Error state */
+.state-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-md);
+  padding: var(--spacing-xl);
   text-align: center;
-  padding: 2rem;
-  color: #dc2626;
 }
 
-.error-message button {
-  margin-top: 1rem;
-  padding: 0.5rem 1rem;
-  background: #667eea;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
+.state-error__icon-wrap {
+  font-size: 2.5rem;
 }
 
-.success-message {
-  background: #d1fae5;
-  color: #065f46;
-  padding: 1rem;
-  border-radius: 8px;
-  margin-bottom: 1.5rem;
-  text-align: center;
+.state-error__message {
+  font-size: 0.9375rem;
+}
+
+/* Toast notifications */
+.toast {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--radius-md);
+  border: 1px solid;
+  font-size: 0.9rem;
   font-weight: 500;
+  animation: slide-in var(--transition-normal);
 }
 
-.error-alert {
-  background: #fee2e2;
-  color: #991b1b;
-  padding: 1rem;
-  border-radius: 8px;
-  margin-bottom: 1.5rem;
+.toast--success {
+  background: color-mix(in srgb, var(--color-success) 10%, transparent);
+  border-color: color-mix(in srgb, var(--color-success) 35%, transparent);
+  color: var(--color-success-dark);
 }
 
+.toast--danger {
+  background: color-mix(in srgb, var(--color-danger) 10%, transparent);
+  border-color: color-mix(in srgb, var(--color-danger) 35%, transparent);
+  color: var(--color-danger-dark);
+}
+
+.toast__icon {
+  font-size: 1.125rem;
+  flex-shrink: 0;
+}
+
+@keyframes slide-in {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Form layout */
 .settings-form {
   display: flex;
   flex-direction: column;
-  gap: 2rem;
+  gap: var(--spacing-lg);
 }
 
-.form-section {
-  background: white;
-  border-radius: 12px;
-  padding: 1.5rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+/* Section card */
+.settings-section {
+  padding: var(--spacing-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
 }
 
-.form-section h3 {
-  margin: 0 0 0.5rem 0;
+.settings-section__header {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-md);
+  padding-bottom: var(--spacing-md);
+  border-bottom: 1px solid var(--border-light);
+}
+
+.settings-section__icon-wrap {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-size: 1.125rem;
-  color: #1f2937;
+  flex-shrink: 0;
 }
 
-.section-description {
-  margin: 0 0 1rem 0;
-  font-size: 0.875rem;
-  color: #6b7280;
+.settings-section__icon-wrap--primary {
+  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+  color: var(--color-primary);
 }
 
+.settings-section__icon-wrap--success {
+  background: color-mix(in srgb, var(--color-success) 12%, transparent);
+  color: var(--color-success);
+}
+
+.settings-section__icon-wrap--warning {
+  background: color-mix(in srgb, var(--color-warning) 12%, transparent);
+  color: var(--color-warning);
+}
+
+.settings-section__icon-wrap--info {
+  background: color-mix(in srgb, var(--color-info) 12%, transparent);
+  color: var(--color-info);
+}
+
+.settings-section__title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin-bottom: 0.125rem;
+}
+
+.settings-section__desc {
+  font-size: 0.8125rem;
+  line-height: 1.4;
+}
+
+/* Form elements */
 .form-group {
-  margin-bottom: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
 }
 
-.form-group label {
-  display: block;
-  margin-bottom: 0.5rem;
-  font-weight: 500;
-  color: #374151;
+.form-label {
   font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
 }
 
 .form-input {
   width: 100%;
-  padding: 0.75rem;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
-  font-size: 1rem;
-  transition: border-color 0.2s;
+  padding: 0.625rem var(--spacing-sm);
+  border: 1.5px solid var(--border-default);
+  border-radius: var(--radius-md);
+  font-size: 0.9375rem;
+  font-family: inherit;
+  color: var(--color-text-primary);
+  background: var(--bg-white);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .form-input:focus {
   outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 12%, transparent);
 }
 
-.input-hint {
-  display: block;
-  margin-top: 0.25rem;
+.form-hint {
   font-size: 0.75rem;
-  color: #9ca3af;
+  line-height: 1.4;
 }
 
 .form-row {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: var(--spacing-md);
 }
 
 .pricing-row {
   grid-template-columns: repeat(3, 1fr);
 }
 
-.input-with-prefix {
+/* Prefixed input */
+.input-prefixed {
   display: flex;
   align-items: stretch;
 }
@@ -483,113 +560,142 @@ onMounted(() => {
 .input-prefix {
   display: flex;
   align-items: center;
-  padding: 0 0.75rem;
-  background: #f3f4f6;
-  border: 1px solid #d1d5db;
+  padding: 0 var(--spacing-sm);
+  background: var(--vt-c-gray-100);
+  border: 1.5px solid var(--border-default);
   border-right: none;
-  border-radius: 8px 0 0 8px;
-  color: #6b7280;
-  font-weight: 500;
+  border-radius: var(--radius-md) 0 0 var(--radius-md);
+  font-weight: 600;
+  font-size: 0.9375rem;
+  flex-shrink: 0;
 }
 
-.input-with-prefix .form-input {
-  border-radius: 0 8px 8px 0;
+.input-prefixed .form-input {
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
 }
 
-.button-group {
+/* Calculation example */
+.calc-example {
+  background: var(--surface-hover);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-md);
+}
+
+.calc-example__heading {
+  font-size: 0.8125rem;
+  font-weight: 600;
   display: flex;
-  gap: 0.75rem;
+  align-items: center;
+  gap: 0.375rem;
+  margin-bottom: var(--spacing-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.calc-example__rows {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.calc-example__row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.875rem;
+  padding: 0.2rem 0;
+}
+
+.calc-example__row--total {
+  border-top: 1.5px solid var(--border-light);
+  margin-top: 0.25rem;
+  padding-top: var(--spacing-xs);
+  font-weight: 700;
+  font-size: 0.9375rem;
+}
+
+/* Button group */
+.btn-group {
+  display: flex;
+  gap: var(--spacing-xs);
   flex-wrap: wrap;
 }
 
-.btn-secondary {
-  padding: 0.5rem 1rem;
-  background: #f3f4f6;
-  color: #374151;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
-  cursor: pointer;
+/* Buttons */
+.action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  padding: 0.5rem var(--spacing-md);
+  border-radius: var(--radius-md);
   font-size: 0.875rem;
-  transition: background 0.2s;
-}
-
-.btn-secondary:hover {
-  background: #e5e7eb;
-}
-
-.example-box {
-  margin-top: 1.5rem;
-  padding: 1rem;
-  background: #f8fafc;
-  border-radius: 8px;
-  border: 1px solid #e2e8f0;
-}
-
-.example-box h4 {
-  margin: 0 0 0.5rem 0;
-  font-size: 0.875rem;
-  color: #475569;
-}
-
-.example-box p {
-  margin: 0 0 0.5rem 0;
-  font-size: 0.875rem;
-  color: #64748b;
-}
-
-.example-box ul {
-  margin: 0;
-  padding-left: 1.25rem;
-  font-size: 0.875rem;
-  color: #64748b;
-}
-
-.example-box li {
-  margin-bottom: 0.25rem;
-}
-
-.form-actions {
-  display: flex;
-  justify-content: flex-end;
-  padding-top: 1rem;
-}
-
-.btn-primary {
-  padding: 0.75rem 2rem;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  border: none;
-  border-radius: 8px;
-  font-size: 1rem;
   font-weight: 600;
+  font-family: inherit;
   cursor: pointer;
-  transition: transform 0.2s, box-shadow 0.2s;
+  border: none;
+  transition: all var(--transition-fast);
 }
 
-.btn-primary:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-}
-
-.btn-primary:disabled {
-  opacity: 0.7;
+.action-btn:disabled {
+  opacity: 0.65;
   cursor: not-allowed;
 }
 
-@media (max-width: 640px) {
-  .form-row {
-    grid-template-columns: 1fr;
-  }
+.action-btn--primary {
+  background: var(--gradient-primary);
+  color: var(--color-text-white);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--color-primary) 30%, transparent);
+}
 
+.action-btn--primary:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px color-mix(in srgb, var(--color-primary) 40%, transparent);
+}
+
+.action-btn--ghost {
+  background: var(--vt-c-gray-100);
+  color: var(--color-text-secondary);
+  border: 1.5px solid var(--border-light);
+}
+
+.action-btn--ghost:hover:not(:disabled) {
+  background: var(--vt-c-gray-200);
+  border-color: var(--border-default);
+}
+
+.action-btn--lg {
+  padding: 0.75rem var(--spacing-xl);
+  font-size: 1rem;
+}
+
+/* Form actions */
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: var(--spacing-xs);
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .form-row,
   .pricing-row {
     grid-template-columns: 1fr;
   }
 
-  .button-group {
+  .btn-group {
     flex-direction: column;
   }
 
-  .btn-secondary {
+  .action-btn--ghost {
+    width: 100%;
+  }
+
+  .form-actions {
+    justify-content: stretch;
+  }
+
+  .action-btn--lg {
     width: 100%;
   }
 }

@@ -1,6 +1,6 @@
 <template>
   <div class="payment-methods-view">
-    <AppHeader 
+    <AppHeader
       title="Métodos de Pago"
       :user-name="currentUser?.first_name || 'Usuario'"
       :user-email="currentUser?.email"
@@ -9,52 +9,63 @@
 
     <div class="container">
       <div class="page-header">
-        <h1>Métodos de Pago</h1>
-        <p class="subtitle">Gestiona tus tarjetas para pagos automáticos</p>
+        <div class="page-header__icon">
+          <i class="pi pi-credit-card"></i>
+        </div>
+        <div>
+          <h1 class="page-header__title">Métodos de Pago</h1>
+          <p class="page-header__subtitle">Gestiona tus tarjetas para pagos automáticos</p>
+        </div>
       </div>
 
-      <div v-if="loading" class="loading-container">
-        <i class="pi pi-spin pi-spinner" style="font-size: 2rem"></i>
-        <p>Cargando métodos de pago...</p>
+      <div v-if="loading" class="state-container">
+        <i class="pi pi-spin pi-spinner state-container__spinner"></i>
+        <p class="state-container__text">Cargando métodos de pago...</p>
       </div>
 
       <div v-else>
         <div class="payment-methods-list">
-          <div v-if="paymentMethods.length === 0" class="empty-state">
-            <i class="pi pi-credit-card" style="font-size: 3rem; color: #94a3b8"></i>
-            <h3>No tienes métodos de pago configurados</h3>
-            <p>Agrega una tarjeta para que los pagos se procesen automáticamente cuando entregues un pedido.</p>
+          <div v-if="paymentMethods.length === 0" class="empty-state card-modern">
+            <div class="empty-state__icon">
+              <i class="pi pi-credit-card"></i>
+            </div>
+            <h3 class="empty-state__title">No tienes métodos de pago configurados</h3>
+            <p class="empty-state__text">Agrega una tarjeta para que los pagos se procesen automáticamente cuando entregues un pedido.</p>
           </div>
 
-          <div v-for="method in paymentMethods" :key="method.id" class="payment-method-card">
-            <div class="method-info">
-              <div class="method-header">
-                <div class="card-icon">
+          <div
+            v-for="method in paymentMethods"
+            :key="method.id"
+            class="payment-card card-modern hover-lift"
+          >
+            <div class="payment-card__body">
+              <div class="payment-card__left">
+                <div class="payment-card__icon">
                   <i class="pi pi-credit-card"></i>
                 </div>
-                <div class="method-details">
-                  <div class="card-number">
-                    <span class="dots">•••• •••• ••••</span>
-                    <span class="last-digits">{{ method.last_four_digits }}</span>
+                <div class="payment-card__details">
+                  <div class="payment-card__number">
+                    <span class="payment-card__dots">•••• •••• ••••</span>
+                    <span class="payment-card__last">{{ method.last_four_digits }}</span>
                   </div>
-                  <div class="card-info">
-                    <span class="cardholder">{{ method.cardholder_name }}</span>
-                    <span class="expiry">{{ method.expiration_month }}/{{ method.expiration_year }}</span>
+                  <div class="payment-card__meta">
+                    <span class="payment-card__holder">{{ method.cardholder_name }}</span>
+                    <span class="payment-card__expiry">{{ method.expiration_month }}/{{ method.expiration_year }}</span>
                   </div>
                 </div>
               </div>
-              <div class="method-actions">
+              <div class="payment-card__actions">
                 <Badge v-if="method.is_default" value="Predeterminada" severity="success" />
-                <Button 
+                <Button
                   v-if="!method.is_default"
-                  label="Establecer como predeterminada"
+                  label="Predeterminar"
                   icon="pi pi-check"
                   size="small"
                   outlined
                   @click="setAsDefault(method.id)"
                   :loading="updating === method.id"
                 />
-                <Button 
+                <Button
                   label="Eliminar"
                   icon="pi pi-trash"
                   size="small"
@@ -68,10 +79,11 @@
           </div>
         </div>
 
-        <div class="add-method-section">
-          <Button 
+        <div class="add-section">
+          <Button
             label="Agregar Tarjeta"
             icon="pi pi-plus"
+            class="btn-primary"
             @click="showAddModal = true"
             :disabled="adding"
           />
@@ -79,38 +91,40 @@
       </div>
     </div>
 
-    <Dialog 
-      v-model:visible="showAddModal" 
-      modal 
+    <Dialog
+      v-model:visible="showAddModal"
+      modal
       header="Agregar Tarjeta"
       :style="{ width: '500px' }"
       :closable="true"
     >
-      <form @submit.prevent="handleAddCard" class="add-card-form">
-        <div class="form-group">
-          <label for="cardholder">Nombre del titular *</label>
-          <InputText 
+      <form @submit.prevent="handleAddCard" class="card-form">
+        <div class="form-field">
+          <label class="form-field__label" for="cardholder">Nombre del titular *</label>
+          <InputText
             id="cardholder"
             v-model="formData.cardholder_name"
             placeholder="Ej: JUAN PEREZ"
             required
             :disabled="adding"
+            class="w-full"
           />
         </div>
 
-        <div class="form-group">
-          <label for="docNumber">DNI del titular *</label>
+        <div class="form-field">
+          <label class="form-field__label" for="docNumber">DNI del titular *</label>
           <InputText
             id="docNumber"
             v-model="formData.doc_number"
             placeholder="12345678"
             required
             :disabled="adding"
+            class="w-full"
           />
         </div>
 
-        <div class="form-group">
-          <label for="cardNumber">Número de tarjeta *</label>
+        <div class="form-field">
+          <label class="form-field__label" for="cardNumber">Número de tarjeta *</label>
           <InputText
             id="cardNumber"
             v-model="formData.card_number"
@@ -119,12 +133,13 @@
             :disabled="adding"
             @input="formatCardNumber"
             @paste="handleCardNumberPaste"
+            class="w-full"
           />
         </div>
 
         <div class="form-row">
-          <div class="form-group">
-            <label for="expiryMonth">Mes *</label>
+          <div class="form-field">
+            <label class="form-field__label" for="expiryMonth">Mes *</label>
             <InputText
               id="expiryMonth"
               v-model="formData.expiration_month"
@@ -135,8 +150,8 @@
               @input="formatMonth"
             />
           </div>
-          <div class="form-group">
-            <label for="expiryYear">Año *</label>
+          <div class="form-field">
+            <label class="form-field__label" for="expiryYear">Año *</label>
             <InputText
               id="expiryYear"
               v-model="formData.expiration_year"
@@ -147,8 +162,8 @@
               @input="formatYear"
             />
           </div>
-          <div class="form-group">
-            <label for="cvv">CVV *</label>
+          <div class="form-field">
+            <label class="form-field__label" for="cvv">CVV *</label>
             <InputText
               id="cvv"
               v-model="formData.security_code"
@@ -162,30 +177,30 @@
           </div>
         </div>
 
-        <div class="form-group">
-          <Checkbox 
-            v-model="formData.is_default" 
+        <div class="form-check">
+          <Checkbox
+            v-model="formData.is_default"
             inputId="isDefault"
             :binary="true"
             :disabled="adding"
           />
-          <label for="isDefault" class="checkbox-label">Establecer como tarjeta predeterminada</label>
+          <label for="isDefault" class="form-check__label">Establecer como tarjeta predeterminada</label>
         </div>
 
-        <div v-if="error" class="error-message">
+        <div v-if="error" class="alert-error">
           <i class="pi pi-exclamation-triangle"></i>
           {{ error }}
         </div>
 
         <div class="form-actions">
-          <Button 
+          <Button
             label="Cancelar"
             severity="secondary"
             outlined
             @click="showAddModal = false"
             :disabled="adding"
           />
-          <Button 
+          <Button
             label="Agregar Tarjeta"
             type="submit"
             :loading="adding"
@@ -195,13 +210,13 @@
       </form>
     </Dialog>
 
-    <Dialog 
-      v-model:visible="showDeleteConfirm" 
-      modal 
+    <Dialog
+      v-model:visible="showDeleteConfirm"
+      modal
       header="Confirmar Eliminación"
       :style="{ width: '400px' }"
     >
-      <p>¿Estás seguro de que deseas eliminar esta tarjeta?</p>
+      <p class="delete-confirm__text">¿Estás seguro de que deseas eliminar esta tarjeta?</p>
       <template #footer>
         <Button label="Cancelar" severity="secondary" outlined @click="showDeleteConfirm = false" />
         <Button label="Eliminar" severity="danger" @click="handleDelete" :loading="deleting === deletingId" />
@@ -274,7 +289,7 @@ const loadUser = async () => {
 
 const loadPaymentMethods = async () => {
   if (!currentUser.value?.id) return
-  
+
   try {
     loading.value = true
     paymentMethods.value = await paymentMethodService.getPaymentMethods()
@@ -494,172 +509,263 @@ onMounted(async () => {
 <style scoped>
 .payment-methods-view {
   min-height: 100vh;
-  background: #f8fafc;
+  background: var(--surface-ground);
 }
 
-.container {
-  max-width: 900px;
-  margin: 0 auto;
-  padding: 2rem 1.25rem;
-}
-
+/* Page header */
 .page-header {
-  margin-bottom: 2rem;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-xl);
 }
 
-.page-header h1 {
-  font-size: 2rem;
+.page-header__icon {
+  width: 3rem;
+  height: 3rem;
+  border-radius: var(--radius-md);
+  background: var(--gradient-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-white);
+  font-size: 1.25rem;
+  flex-shrink: 0;
+}
+
+.page-header__title {
+  font-size: 1.75rem;
   font-weight: 700;
-  color: #1e293b;
-  margin-bottom: 0.5rem;
+  color: var(--color-text-primary);
+  margin: 0 0 0.25rem;
+  line-height: 1.2;
 }
 
-.subtitle {
-  color: #64748b;
-  font-size: 1rem;
+.page-header__subtitle {
+  color: var(--color-text-muted);
+  font-size: 0.9375rem;
+  margin: 0;
 }
 
-.loading-container {
+/* State container (loading) */
+.state-container {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 4rem 0;
-  color: #64748b;
+  padding: var(--spacing-2xl) 0;
+  gap: var(--spacing-sm);
 }
 
-.payment-methods-list {
-  margin-bottom: 2rem;
+.state-container__spinner {
+  font-size: 2rem;
+  color: var(--color-primary);
 }
 
+.state-container__text {
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+/* Empty state */
 .empty-state {
   text-align: center;
-  padding: 4rem 2rem;
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  padding: var(--spacing-2xl) var(--spacing-xl);
 }
 
-.empty-state h3 {
-  margin: 1rem 0 0.5rem;
-  color: #1e293b;
+.empty-state__icon {
+  width: 4rem;
+  height: 4rem;
+  border-radius: var(--radius-xl);
+  background: var(--bg-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto var(--spacing-md);
+  font-size: 1.75rem;
+  color: var(--color-text-muted);
 }
 
-.empty-state p {
-  color: #64748b;
-  max-width: 500px;
+.empty-state__title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin: 0 0 var(--spacing-sm);
+}
+
+.empty-state__text {
+  color: var(--color-text-muted);
+  max-width: 480px;
   margin: 0 auto;
+  line-height: 1.6;
 }
 
-.payment-method-card {
-  background: white;
-  border-radius: 12px;
-  padding: 1.5rem;
-  margin-bottom: 1rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+/* Payment card list */
+.payment-methods-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-xl);
 }
 
-.method-info {
+.payment-card {
+  padding: var(--spacing-lg);
+}
+
+.payment-card__body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 1rem;
+  gap: var(--spacing-md);
+  flex-wrap: wrap;
 }
 
-.method-header {
+.payment-card__left {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: var(--spacing-md);
   flex: 1;
+  min-width: 0;
 }
 
-.card-icon {
-  font-size: 2rem;
-  color: #3b82f6;
+.payment-card__icon {
+  width: 3rem;
+  height: 3rem;
+  border-radius: var(--radius-md);
+  background: var(--bg-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.375rem;
+  color: var(--color-primary);
+  flex-shrink: 0;
 }
 
-.method-details {
+.payment-card__details {
   flex: 1;
+  min-width: 0;
 }
 
-.card-number {
-  font-size: 1.25rem;
+.payment-card__number {
+  font-size: 1.125rem;
   font-weight: 600;
-  color: #1e293b;
-  margin-bottom: 0.5rem;
-}
-
-.dots {
-  letter-spacing: 0.25rem;
-  margin-right: 0.5rem;
-}
-
-.last-digits {
-  color: #64748b;
-}
-
-.card-info {
+  color: var(--color-text-primary);
+  margin-bottom: var(--spacing-xs);
   display: flex;
-  gap: 1rem;
-  color: #64748b;
+  align-items: baseline;
+  gap: var(--spacing-xs);
+}
+
+.payment-card__dots {
+  letter-spacing: 0.2rem;
+  color: var(--color-text-secondary);
+}
+
+.payment-card__last {
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.payment-card__meta {
+  display: flex;
+  gap: var(--spacing-md);
   font-size: 0.875rem;
+  color: var(--color-text-muted);
 }
 
-.method-actions {
+.payment-card__actions {
   display: flex;
-  gap: 0.75rem;
+  gap: var(--spacing-sm);
   align-items: center;
+  flex-wrap: wrap;
 }
 
-.add-method-section {
-  text-align: center;
-  padding: 2rem 0;
+/* Add section */
+.add-section {
+  display: flex;
+  justify-content: center;
+  padding: var(--spacing-lg) 0;
 }
 
-.add-card-form {
+/* Dialog form */
+.card-form {
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  gap: var(--spacing-md);
+  padding-top: var(--spacing-sm);
 }
 
-.form-group {
+.form-field {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: var(--spacing-xs);
 }
 
-.form-group label {
+.form-field__label {
   font-weight: 500;
-  color: #1e293b;
+  color: var(--color-text-secondary);
   font-size: 0.875rem;
 }
 
 .form-row {
   display: grid;
-  grid-template-columns: 90px 90px 90px;
-  gap: 1rem;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--spacing-sm);
 }
 
-.checkbox-label {
-  margin-left: 0.5rem;
-  font-weight: normal;
+.form-check {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.form-check__label {
+  font-size: 0.9375rem;
+  color: var(--color-text-secondary);
   cursor: pointer;
 }
 
-.error-message {
-  background: #fee2e2;
-  color: #991b1b;
-  padding: 0.75rem;
-  border-radius: 6px;
+.alert-error {
+  background: color-mix(in srgb, var(--color-danger) 10%, transparent);
+  color: var(--color-danger-dark);
+  border: 1px solid color-mix(in srgb, var(--color-danger) 30%, transparent);
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--radius-sm);
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--spacing-sm);
+  font-size: 0.875rem;
 }
 
 .form-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 0.75rem;
-  margin-top: 0.5rem;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-xs);
+}
+
+.delete-confirm__text {
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
+.w-full {
+  width: 100%;
+}
+
+@media (max-width: 640px) {
+  .payment-card__body {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .payment-card__actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .form-row {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
 }
 </style>

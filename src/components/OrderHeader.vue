@@ -23,25 +23,31 @@ const currentStatusIcon = computed(() => StatusIcons[props.order.status] || 'pi-
 </script>
 
 <template>
-  <div class="order-header">
-    <div class="order-id-section">
-      <span class="label">Pedido</span>
-      <span class="order-id">#{{ order.id.slice(0, 8).toUpperCase() }}</span>
-    </div>
-
-    <div class="order-status-badge">
-      <i :class="['pi', currentStatusIcon, 'status-icon']"></i>
-      <span class="status-text">{{ currentStatusLabel }}</span>
-    </div>
-
-    <div class="order-meta">
-      <div class="meta-item">
-        <span class="meta-label">Creado</span>
-        <span class="meta-value">{{ formattedDate }}</span>
+  <div class="order-header gradient-primary">
+    <div class="order-header__top">
+      <div class="order-header__id-block">
+        <span class="order-header__id-label">Pedido</span>
+        <span class="order-header__id">#{{ order.id.slice(0, 8).toUpperCase() }}</span>
       </div>
-      <div v-if="order.eta" class="meta-item">
-        <span class="meta-label">Tiempo estimado</span>
-        <span class="meta-value eta">{{ order.eta }}</span>
+
+      <div class="order-header__status-badge">
+        <i :class="['pi', currentStatusIcon]"></i>
+        <span>{{ currentStatusLabel }}</span>
+      </div>
+    </div>
+
+    <div class="order-header__meta">
+      <div class="order-header__meta-item">
+        <span class="order-header__meta-label">
+          <i class="pi pi-calendar"></i> Creado
+        </span>
+        <span class="order-header__meta-value">{{ formattedDate }}</span>
+      </div>
+      <div v-if="order.eta" class="order-header__meta-item">
+        <span class="order-header__meta-label">
+          <i class="pi pi-clock"></i> Tiempo estimado
+        </span>
+        <span class="order-header__eta-chip">{{ order.eta }}</span>
       </div>
     </div>
   </div>
@@ -49,73 +55,90 @@ const currentStatusIcon = computed(() => StatusIcons[props.order.status] || 'pi-
 
 <style scoped>
 .order-header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  padding: 1.5rem;
-  border-radius: 16px;
-  margin-bottom: 1.5rem;
-}
-
-.order-id-section {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
-}
-
-.label {
-  font-size: 0.875rem;
-  opacity: 0.9;
-}
-
-.order-id {
-  font-size: 1.25rem;
-  font-weight: 700;
-  font-family: monospace;
-}
-
-.order-status-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  background: rgba(255, 255, 255, 0.2);
-  padding: 0.5rem 1rem;
-  border-radius: 20px;
-  margin-bottom: 1rem;
-}
-
-.status-icon {
-  font-size: 1.25rem;
-}
-
-.status-text {
-  font-weight: 600;
-}
-
-.order-meta {
+  color: var(--color-text-white);
+  padding: var(--spacing-lg);
+  border-radius: var(--radius-xl);
+  margin-bottom: var(--spacing-lg);
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: var(--spacing-md);
 }
 
-.meta-item {
+.order-header__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+}
+
+.order-header__id-block {
+  display: flex;
+  align-items: baseline;
+  gap: var(--spacing-xs);
+}
+
+.order-header__id-label {
+  font-size: 0.8125rem;
+  opacity: 0.85;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.order-header__id {
+  font-size: 1.375rem;
+  font-weight: 700;
+  font-family: 'Courier New', Courier, monospace;
+  letter-spacing: 0.03em;
+}
+
+.order-header__status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  background: var(--border-white);
+  border: 1px solid var(--border-white);
+  padding: 0.375rem var(--spacing-sm);
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 0.875rem;
+  backdrop-filter: blur(8px);
+}
+
+.order-header__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  padding-top: var(--spacing-sm);
+  border-top: 1px solid var(--border-white);
+}
+
+.order-header__meta-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: var(--spacing-sm);
 }
 
-.meta-label {
-  font-size: 0.875rem;
+.order-header__meta-label {
+  font-size: 0.8125rem;
   opacity: 0.8;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
 }
 
-.meta-value {
+.order-header__meta-value {
+  font-size: 0.875rem;
   font-weight: 500;
 }
 
-.meta-value.eta {
-  background: rgba(255, 255, 255, 0.2);
-  padding: 0.25rem 0.75rem;
-  border-radius: 12px;
+.order-header__eta-chip {
+  background: var(--border-white);
+  border: 1px solid var(--border-white);
+  padding: 0.1875rem var(--spacing-sm);
+  border-radius: 999px;
+  font-size: 0.8125rem;
+  font-weight: 600;
 }
 </style>

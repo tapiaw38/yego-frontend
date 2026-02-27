@@ -136,44 +136,51 @@
 </script>
 
 <template>
-  <div class="edit-profile-view">
-    <header class="app-header">
-      <button @click="goBack" class="back-button">← Volver</button>
-      <h1 class="app-title">Editar Datos de Entrega</h1>
+  <div class="profile-view">
+    <header class="profile-header">
+      <button @click="goBack" class="back-btn" aria-label="Volver">
+        <i class="pi pi-arrow-left"></i>
+        <span>Volver</span>
+      </button>
+      <h1 class="profile-header__title">Editar Datos de Entrega</h1>
     </header>
 
-    <main class="main-content">
+    <main class="profile-main">
       <!-- Loading State -->
-      <div v-if="loading" class="loading-state">
-        <div class="spinner"></div>
-        <p>Cargando perfil...</p>
+      <div v-if="loading" class="feedback-state">
+        <div class="feedback-state__spinner"></div>
+        <p class="feedback-state__text">Cargando perfil...</p>
       </div>
 
       <!-- Error State (Profile not found) -->
-      <div v-else-if="error && !profile" class="error-state">
-        <div class="error-icon"><i class="pi pi-exclamation-triangle"></i></div>
-        <h2>Perfil no encontrado</h2>
-        <p>{{ error }}</p>
-        <button @click="goBack" class="retry-button">Volver</button>
+      <div v-else-if="error && !profile" class="feedback-state feedback-state--error card-modern">
+        <div class="feedback-state__icon feedback-state__icon--error">
+          <i class="pi pi-exclamation-triangle"></i>
+        </div>
+        <h2 class="feedback-state__title">Perfil no encontrado</h2>
+        <p class="feedback-state__message">{{ error }}</p>
+        <button @click="goBack" class="action-btn action-btn--primary">Volver</button>
       </div>
 
       <!-- Success State -->
-      <div v-else-if="success" class="success-state">
-        <div class="success-icon"><i class="pi pi-check-circle"></i></div>
-        <h2>Datos actualizados</h2>
-        <p>Tu información ha sido guardada correctamente.</p>
-        <p class="hint">Regresando...</p>
+      <div v-else-if="success" class="feedback-state feedback-state--success card-modern">
+        <div class="feedback-state__icon feedback-state__icon--success">
+          <i class="pi pi-check-circle"></i>
+        </div>
+        <h2 class="feedback-state__title">Datos actualizados</h2>
+        <p class="feedback-state__message">Tu información ha sido guardada correctamente.</p>
+        <p class="feedback-state__hint">Regresando...</p>
       </div>
 
       <!-- Form -->
-      <div v-else class="form-container">
+      <div v-else class="form-card card-modern">
         <p class="form-intro">Actualiza tu información de entrega</p>
 
         <form @submit.prevent="handleSubmit" class="profile-form">
           <!-- Phone Number with Country Selector -->
-          <div class="form-group">
-            <label for="phone">Número de teléfono</label>
-            <div class="phone-input-container">
+          <div class="form-field">
+            <label class="form-field__label" for="phone">Número de teléfono</label>
+            <div class="phone-row">
               <select v-model="selectedCountry" class="country-select">
                 <option
                   v-for="country in countries"
@@ -193,13 +200,13 @@
               />
             </div>
             <span class="phone-preview" v-if="phoneNumber">
-              {{ fullPhoneNumber }}
+              <i class="pi pi-phone"></i> {{ fullPhoneNumber }}
             </span>
           </div>
 
           <!-- Location Map -->
-          <div class="form-group">
-            <label>Ubicación de entrega</label>
+          <div class="form-field">
+            <label class="form-field__label">Ubicación de entrega</label>
             <MapboxPicker
               v-model="location"
               :access-token="MAPBOX_TOKEN"
@@ -208,36 +215,35 @@
           </div>
 
           <!-- Address (auto-filled from map) -->
-          <div class="form-group">
-            <label for="address">Dirección</label>
+          <div class="form-field">
+            <label class="form-field__label" for="address">Dirección</label>
             <input
               id="address"
               v-model="address"
               type="text"
               placeholder="Se completará automáticamente al seleccionar en el mapa"
-              class="form-input"
+              class="form-input form-input--readonly"
               readonly
             />
           </div>
 
           <!-- Coordinates display -->
-          <div v-if="location" class="coordinates-display">
-            <span
-              ><i class="pi pi-map-marker"></i> {{ location.lat.toFixed(6) }},
-              {{ location.lng.toFixed(6) }}</span
-            >
+          <div v-if="location" class="coordinates-pill">
+            <i class="pi pi-map-marker"></i>
+            <span>{{ location.lat.toFixed(6) }}, {{ location.lng.toFixed(6) }}</span>
           </div>
 
           <!-- Error message -->
-          <div v-if="error" class="form-error">
+          <div v-if="error" class="alert-error">
+            <i class="pi pi-exclamation-circle"></i>
             {{ error }}
           </div>
 
           <!-- Buttons -->
-          <div class="button-group">
+          <div class="form-actions">
             <button
               type="button"
-              class="cancel-button"
+              class="action-btn action-btn--secondary"
               @click="goBack"
               :disabled="submitting"
             >
@@ -245,344 +251,380 @@
             </button>
             <button
               type="submit"
-              class="submit-button"
+              class="action-btn action-btn--primary"
               :disabled="submitting || !location || !phoneNumber"
             >
-              <span v-if="submitting">Guardando...</span>
-              <span v-else>Guardar cambios</span>
+              <i v-if="submitting" class="pi pi-spin pi-spinner"></i>
+              <span>{{ submitting ? "Guardando..." : "Guardar cambios" }}</span>
             </button>
           </div>
         </form>
       </div>
     </main>
 
-    <footer class="app-footer">
+    <footer class="profile-footer">
       <p>Powered by Gillie AI</p>
     </footer>
   </div>
 </template>
 
 <style scoped>
-  .edit-profile-view {
+  .profile-view {
     min-height: 100vh;
     display: flex;
     flex-direction: column;
-    background: #f8fafc;
+    background: var(--surface-ground);
   }
 
-  .app-header {
-    background: white;
-    padding: 1rem;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  /* Header */
+  .profile-header {
+    background: var(--bg-white);
+    padding: var(--spacing-md) var(--spacing-lg);
+    box-shadow: var(--shadow-light);
     position: sticky;
     top: 0;
     z-index: 10;
     display: flex;
     align-items: center;
-    gap: 1rem;
+    gap: var(--spacing-md);
+    border-bottom: 1px solid var(--border-light);
   }
 
-  .back-button {
+  .back-btn {
     background: none;
     border: none;
-    color: #667eea;
-    font-size: 1rem;
+    color: var(--color-primary);
+    font-size: 0.9375rem;
+    font-weight: 500;
     cursor: pointer;
-    padding: 0.5rem;
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    transition: background var(--transition-fast), color var(--transition-fast);
+    flex-shrink: 0;
   }
 
-  .back-button:hover {
-    color: #5a67d8;
+  .back-btn:hover {
+    background: var(--surface-hover);
+    color: var(--color-primary-dark);
   }
 
-  .app-title {
+  .profile-header__title {
     font-size: 1.125rem;
     font-weight: 600;
-    color: #1f2937;
+    color: var(--color-text-primary);
     margin: 0;
     flex: 1;
   }
 
-  .main-content {
+  /* Main content */
+  .profile-main {
     flex: 1;
-    padding: 1rem;
-    max-width: 480px;
+    padding: var(--spacing-lg) var(--spacing-md);
+    max-width: 520px;
     margin: 0 auto;
     width: 100%;
   }
 
-  .loading-state,
-  .error-state,
-  .success-state {
+  /* Feedback states (loading / error / success) */
+  .feedback-state {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 3rem 1rem;
+    padding: var(--spacing-2xl) var(--spacing-lg);
     text-align: center;
+    gap: var(--spacing-sm);
   }
 
-  .spinner {
+  .feedback-state__spinner {
     width: 48px;
     height: 48px;
-    border: 4px solid #e5e7eb;
-    border-top-color: #667eea;
+    border: 4px solid var(--border-light);
+    border-top-color: var(--color-primary);
     border-radius: 50%;
-    animation: spin 1s linear infinite;
-    margin-bottom: 1rem;
+    animation: spin 0.9s linear infinite;
   }
 
   @keyframes spin {
-    to {
-      transform: rotate(360deg);
-    }
+    to { transform: rotate(360deg); }
   }
 
-  .error-icon,
-  .success-icon {
-    font-size: 4rem;
-    margin-bottom: 1rem;
+  .feedback-state__text {
+    color: var(--color-text-muted);
+    margin: 0;
   }
 
-  .error-state h2,
-  .success-state h2 {
-    color: #1f2937;
-    margin-bottom: 0.5rem;
+  .feedback-state__icon {
+    width: 5rem;
+    height: 5rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    margin-bottom: var(--spacing-xs);
   }
 
-  .error-state p,
-  .success-state p {
-    color: #6b7280;
-    margin-bottom: 0.5rem;
+  .feedback-state__icon--error {
+    background: color-mix(in srgb, var(--color-danger) 12%, transparent);
+    color: var(--color-danger);
   }
 
-  .hint {
+  .feedback-state__icon--success {
+    background: color-mix(in srgb, var(--color-success) 12%, transparent);
+    color: var(--color-success);
+  }
+
+  .feedback-state__title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--color-text-primary);
+    margin: 0;
+  }
+
+  .feedback-state__message {
+    color: var(--color-text-muted);
+    margin: 0;
+    line-height: 1.5;
+  }
+
+  .feedback-state__hint {
     font-size: 0.875rem;
-    color: #9ca3af;
+    color: var(--color-text-muted);
+    margin: 0;
+    font-style: italic;
   }
 
-  .form-container {
-    animation: fadeIn 0.3s ease;
+  /* Form card */
+  .form-card {
+    padding: var(--spacing-xl);
+    animation: fadeSlide 0.25s ease;
   }
 
-  @keyframes fadeIn {
-    from {
-      opacity: 0;
-      transform: translateY(10px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
+  @keyframes fadeSlide {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
   }
 
   .form-intro {
     text-align: center;
-    color: #6b7280;
-    margin-bottom: 1.5rem;
+    color: var(--color-text-muted);
+    margin: 0 0 var(--spacing-lg);
+    font-size: 0.9375rem;
   }
 
   .profile-form {
     display: flex;
     flex-direction: column;
-    gap: 1.5rem;
+    gap: var(--spacing-lg);
   }
 
-  .form-group {
+  /* Form field */
+  .form-field {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: var(--spacing-xs);
   }
 
-  .form-group label {
+  .form-field__label {
     font-weight: 500;
-    color: #374151;
+    color: var(--color-text-secondary);
     font-size: 0.875rem;
   }
 
-  .phone-input-container {
+  /* Phone row */
+  .phone-row {
     display: flex;
-    gap: 0.5rem;
+    gap: var(--spacing-sm);
   }
 
   .country-select {
     padding: 0.75rem;
-    border: 1px solid #d1d5db;
-    border-radius: 8px;
-    font-size: 1rem;
-    background: white;
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    font-size: 0.9375rem;
+    background: var(--bg-white);
+    color: var(--color-text-primary);
     cursor: pointer;
     min-width: 110px;
+    transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
   }
 
   .country-select:focus {
     outline: none;
-    border-color: #667eea;
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    border-color: var(--border-focus);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 15%, transparent);
+  }
+
+  .phone-preview {
+    font-size: 0.8125rem;
+    color: var(--color-primary);
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
   }
 
   .phone-input {
     flex: 1;
   }
 
-  .phone-preview {
-    font-size: 0.75rem;
-    color: #667eea;
-    font-weight: 500;
-  }
-
+  /* Generic input */
   .form-input {
     padding: 0.75rem 1rem;
     border: 1px solid var(--border-default);
-    border-radius: 8px;
-    font-size: 1rem;
-    transition:
-      border-color 0.2s,
-      box-shadow 0.2s;
-    background: var(--bg-white) !important;
-    color: var(--color-text-primary) !important;
-  }
-
-  .form-input::placeholder {
-    color: var(--color-text-placeholder) !important;
+    border-radius: var(--radius-sm);
+    font-size: 0.9375rem;
+    background: var(--bg-white);
+    color: var(--color-text-primary);
+    transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+    width: 100%;
   }
 
   .form-input:focus {
     outline: none;
-    border-color: var(--color-primary);
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-    background: var(--bg-white) !important;
-    color: var(--color-text-primary) !important;
+    border-color: var(--border-focus);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 15%, transparent);
   }
 
-  .form-input[readonly] {
-    background: var(--bg-lighter) !important;
-    color: var(--color-text-muted) !important;
+  .form-input--readonly {
+    background: var(--bg-light);
+    color: var(--color-text-muted);
+    cursor: default;
   }
 
-  .coordinates-display {
-    font-size: 0.75rem;
-    color: #6b7280;
-    text-align: center;
-    padding: 0.5rem;
-    background: #f3f4f6;
-    border-radius: 8px;
+  .form-input--readonly:focus {
+    box-shadow: none;
+    border-color: var(--border-default);
   }
 
-  .form-error {
-    color: #dc2626;
-    font-size: 0.875rem;
-    text-align: center;
-    padding: 0.75rem;
-    background: #fef2f2;
-    border-radius: 8px;
-  }
-
-  .button-group {
+  /* Coordinates */
+  .coordinates-pill {
     display: flex;
-    gap: 0.75rem;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-xs);
+    font-size: 0.8125rem;
+    color: var(--color-text-muted);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    background: var(--bg-light);
+    border-radius: var(--radius-xl);
+    border: 1px solid var(--border-light);
   }
 
-  .cancel-button {
+  .coordinates-pill i {
+    color: var(--color-primary);
+  }
+
+  /* Error alert */
+  .alert-error {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-sm) var(--spacing-md);
+    background: color-mix(in srgb, var(--color-danger) 10%, transparent);
+    border: 1px solid color-mix(in srgb, var(--color-danger) 30%, transparent);
+    border-radius: var(--radius-sm);
+    color: var(--color-danger-dark);
+    font-size: 0.875rem;
+  }
+
+  /* Action buttons */
+  .form-actions {
+    display: flex;
+    gap: var(--spacing-sm);
+    padding-top: var(--spacing-xs);
+  }
+
+  .action-btn {
     flex: 1;
-    background: white;
-    color: #6b7280;
-    border: 1px solid #d1d5db;
-    padding: 1rem;
-    border-radius: 8px;
+    padding: 0.875rem var(--spacing-md);
+    border-radius: var(--radius-sm);
     font-weight: 600;
     font-size: 1rem;
     cursor: pointer;
-    transition: background 0.2s;
+    transition: all var(--transition-fast);
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-xs);
   }
 
-  .cancel-button:hover:not(:disabled) {
-    background: #f9fafb;
-  }
-
-  .cancel-button:disabled {
-    opacity: 0.6;
+  .action-btn:disabled {
+    opacity: 0.55;
     cursor: not-allowed;
   }
 
-  .submit-button {
-    flex: 1;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    border: none;
-    padding: 1rem;
-    border-radius: 8px;
-    font-weight: 600;
-    font-size: 1rem;
-    cursor: pointer;
-    transition:
-      transform 0.2s,
-      box-shadow 0.2s,
-      opacity 0.2s;
+  .action-btn--primary {
+    background: var(--gradient-primary);
+    color: var(--color-text-white);
   }
 
-  .submit-button:hover:not(:disabled) {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  .action-btn--primary:hover:not(:disabled) {
+    opacity: 0.9;
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-medium);
   }
 
-  .submit-button:active:not(:disabled) {
+  .action-btn--primary:active:not(:disabled) {
     transform: translateY(0);
   }
 
-  .submit-button:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
+  .action-btn--secondary {
+    background: var(--bg-white);
+    color: var(--color-text-secondary);
+    border: 1px solid var(--border-default);
   }
 
-  .retry-button {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    border: none;
-    padding: 0.75rem 1.5rem;
-    border-radius: 8px;
-    font-weight: 500;
-    cursor: pointer;
+  .action-btn--secondary:hover:not(:disabled) {
+    background: var(--surface-hover);
   }
 
-  .app-footer {
-    background: white;
-    padding: 1rem;
+  /* Footer */
+  .profile-footer {
+    background: var(--bg-white);
+    padding: var(--spacing-md);
     text-align: center;
-    border-top: 1px solid #e5e7eb;
+    border-top: 1px solid var(--border-light);
   }
 
-  .app-footer p {
-    color: #9ca3af;
+  .profile-footer p {
+    color: var(--color-text-muted);
     font-size: 0.875rem;
     margin: 0;
   }
 
-  /* Mobile Responsive */
+  /* Responsive */
   @media (max-width: 640px) {
-    .app-header {
-      padding: 0.75rem;
-      gap: 0.5rem;
+    .profile-header {
+      padding: var(--spacing-sm) var(--spacing-md);
     }
 
-    .back-button {
-      font-size: 0.875rem;
-      padding: 0.375rem;
+    .back-btn span {
+      display: none;
     }
 
-    .app-title {
-      font-size: 1.1rem;
+    .profile-header__title {
+      font-size: 1rem;
     }
 
-    .main-content {
-      padding: 0.75rem;
+    .profile-main {
+      padding: var(--spacing-md) var(--spacing-sm);
+    }
+
+    .form-card {
+      padding: var(--spacing-lg) var(--spacing-md);
     }
 
     .profile-form {
-      gap: 1.25rem;
+      gap: var(--spacing-md);
     }
 
-    .phone-input-container {
+    .phone-row {
       flex-direction: column;
     }
 
@@ -590,7 +632,7 @@
       width: 100%;
     }
 
-    .button-group {
+    .form-actions {
       flex-direction: column;
     }
   }

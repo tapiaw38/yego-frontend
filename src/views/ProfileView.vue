@@ -281,57 +281,51 @@
       @logout="handleLogout"
     />
 
-    <main class="main-content">
+    <main class="profile-main">
       <!-- Loading State -->
-      <div v-if="loading" class="loading-state">
+      <div v-if="loading" class="feedback-state">
         <div class="spinner"></div>
-        <p>Cargando perfil...</p>
+        <p class="text-gray-500">Cargando perfil...</p>
       </div>
 
       <!-- Success State -->
-      <div v-else-if="success" class="success-state">
-        <div class="success-icon"><i class="pi pi-check-circle"></i></div>
-        <h2>Perfil actualizado</h2>
-        <p>Tu informacion ha sido guardada correctamente.</p>
+      <div v-else-if="success" class="feedback-state card-modern feedback-card">
+        <div class="feedback-icon text-success">
+          <i class="pi pi-check-circle"></i>
+        </div>
+        <h2 class="text-gray-800">Perfil actualizado</h2>
+        <p class="text-gray-500">Tu informacion ha sido guardada correctamente.</p>
       </div>
 
       <!-- Error loading profile details (but profile exists) -->
-      <div v-else-if="error && profileId && !profile" class="form-container">
-        <div class="profile-status status-incomplete">
-          <span
-            ><i class="pi pi-exclamation-triangle"></i> Error al cargar el
-            perfil</span
-          >
+      <div v-else-if="error && profileId && !profile" class="card-modern form-card">
+        <div class="profile-badge badge-warning">
+          <i class="pi pi-exclamation-triangle"></i>
+          <span>Error al cargar el perfil</span>
         </div>
-        <div class="form-error">
-          {{ error }}
-        </div>
-        <button @click="loadProfile()" class="submit-button">Reintentar</button>
+        <div class="alert-danger">{{ error }}</div>
+        <button @click="loadProfile()" class="btn-primary action-btn">
+          Reintentar
+        </button>
       </div>
 
       <!-- Profile Form -->
-      <div v-else class="form-container">
+      <div v-else class="card-modern form-card">
+        <!-- Status badge -->
         <div
           v-if="profileId"
-          class="profile-status"
-          :class="{
-            'status-complete': isCompleted,
-            'status-incomplete': !isCompleted,
-          }"
+          class="profile-badge"
+          :class="isCompleted ? 'badge-success' : 'badge-warning'"
         >
-          <span v-if="isCompleted"
-            ><i class="pi pi-check-circle"></i> Perfil completo</span
-          >
-          <span v-else
-            ><i class="pi pi-exclamation-triangle"></i> Perfil incompleto</span
-          >
+          <i :class="isCompleted ? 'pi pi-check-circle' : 'pi pi-exclamation-triangle'"></i>
+          <span>{{ isCompleted ? 'Perfil completo' : 'Perfil incompleto' }}</span>
+        </div>
+        <div v-else class="profile-badge badge-info">
+          <i class="pi pi-info-circle"></i>
+          <span>Crea tu perfil</span>
         </div>
 
-        <div v-else class="profile-status status-incomplete">
-          <span><i class="pi pi-info-circle"></i> Crea tu perfil</span>
-        </div>
-
-        <p class="form-intro">
+        <p class="form-intro text-gray-500">
           <span v-if="profileId">Actualiza tu informacion de entrega</span>
           <span v-else>Completa tu informacion de entrega</span>
         </p>
@@ -339,9 +333,9 @@
         <form @submit.prevent="handleSubmit" class="profile-form">
           <!-- Phone Number with Country Selector -->
           <div class="form-group">
-            <label for="phone">Numero de telefono</label>
-            <div class="phone-input-container">
-              <select v-model="selectedCountry" class="country-select">
+            <label class="form-label" for="phone">Numero de telefono</label>
+            <div class="phone-input-row">
+              <select v-model="selectedCountry" class="country-select input-modern">
                 <option
                   v-for="country in countries"
                   :key="country.code"
@@ -356,17 +350,17 @@
                 type="tel"
                 placeholder="11 1234-5678"
                 required
-                class="form-input phone-input"
+                class="input-modern phone-input"
               />
             </div>
-            <span class="phone-preview" v-if="phoneNumber">
+            <span v-if="phoneNumber" class="phone-preview text-primary">
               {{ fullPhoneNumber }}
             </span>
           </div>
 
           <!-- Location Map -->
           <div class="form-group">
-            <label>Ubicacion de entrega</label>
+            <label class="form-label">Ubicacion de entrega</label>
             <MapboxPicker
               v-model="location"
               :access-token="MAPBOX_TOKEN"
@@ -378,45 +372,43 @@
 
           <!-- Address (auto-filled from map) -->
           <div class="form-group">
-            <label for="address">Direccion</label>
+            <label class="form-label" for="address">Direccion</label>
             <input
               id="address"
               v-model="address"
               type="text"
               placeholder="Se completara automaticamente al seleccionar en el mapa"
-              class="form-input"
+              class="input-modern input-readonly"
               readonly
             />
           </div>
 
           <!-- Coordinates display -->
-          <div v-if="location" class="coordinates-display">
-            <span
-              ><i class="pi pi-map-marker"></i> {{ location.lat.toFixed(6) }},
-              {{ location.lng.toFixed(6) }}</span
-            >
+          <div v-if="location" class="coordinates-chip">
+            <i class="pi pi-map-marker text-primary"></i>
+            <span class="text-gray-500">
+              {{ location.lat.toFixed(6) }}, {{ location.lng.toFixed(6) }}
+            </span>
           </div>
 
           <!-- Error message -->
-          <div v-if="error" class="form-error">
-            {{ error }}
-          </div>
+          <div v-if="error" class="alert-danger">{{ error }}</div>
 
           <!-- Submit button -->
           <button
             type="submit"
-            class="submit-button"
+            class="btn-primary action-btn"
             :disabled="submitting || !location || !phoneNumber"
           >
-            <span v-if="submitting">Guardando...</span>
-            <span v-else>Guardar cambios</span>
+            <i v-if="submitting" class="pi pi-spin pi-spinner"></i>
+            <span>{{ submitting ? 'Guardando...' : 'Guardar cambios' }}</span>
           </button>
         </form>
       </div>
     </main>
 
     <footer class="app-footer">
-      <p>Powered by Gillie AI</p>
+      <p class="text-gray-400">Powered by Gillie AI</p>
     </footer>
   </div>
 </template>
@@ -429,273 +421,207 @@
     background: var(--surface-ground);
   }
 
-  .main-content {
+  .profile-main {
     flex: 1;
-    padding: 1rem;
-    max-width: 480px;
+    padding: var(--spacing-lg) var(--spacing-md);
+    max-width: 520px;
     margin: 0 auto;
     width: 100%;
   }
 
-  .loading-state,
-  .error-state,
-  .success-state {
+  /* Feedback states (loading / success) */
+  .feedback-state {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 3rem 1rem;
+    padding: var(--spacing-2xl) var(--spacing-md);
     text-align: center;
+    gap: var(--spacing-sm);
   }
 
+  .feedback-card {
+    margin-top: var(--spacing-lg);
+    padding: var(--spacing-2xl) var(--spacing-xl);
+  }
+
+  .feedback-icon {
+    font-size: 3.5rem;
+    line-height: 1;
+  }
+
+  /* Spinner */
   .spinner {
     width: 48px;
     height: 48px;
-    border: 4px solid #e5e7eb;
-    border-top-color: #667eea;
+    border: 3px solid var(--border-light);
+    border-top-color: var(--color-primary);
     border-radius: 50%;
-    animation: spin 1s linear infinite;
-    margin-bottom: 1rem;
+    animation: spin 0.8s linear infinite;
   }
 
   @keyframes spin {
-    to {
-      transform: rotate(360deg);
-    }
+    to { transform: rotate(360deg); }
   }
 
-  .error-icon,
-  .success-icon {
-    font-size: 4rem;
-    margin-bottom: 1rem;
+  /* Form card */
+  .form-card {
+    padding: var(--spacing-xl);
+    animation: fadeUp var(--transition-normal) both;
   }
 
-  .error-state h2,
-  .success-state h2 {
-    color: #1f2937;
-    margin-bottom: 0.5rem;
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
   }
 
-  .error-state p,
-  .success-state p {
-    color: #6b7280;
-    margin-bottom: 0.5rem;
+  /* Status badges */
+  .profile-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--radius-xl);
+    font-size: 0.8125rem;
+    font-weight: var(--font-semibold);
+    margin-bottom: var(--spacing-sm);
   }
 
-  .hint {
-    font-size: 0.875rem;
-    color: #9ca3af;
+  .badge-success {
+    background: color-mix(in srgb, var(--color-success) 12%, transparent);
+    color: var(--color-success-dark);
   }
 
-  .form-container {
-    animation: fadeIn 0.3s ease;
+  .badge-warning {
+    background: color-mix(in srgb, var(--color-warning) 12%, transparent);
+    color: var(--color-warning-dark);
   }
 
-  @keyframes fadeIn {
-    from {
-      opacity: 0;
-      transform: translateY(10px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
+  .badge-info {
+    background: color-mix(in srgb, var(--color-info) 12%, transparent);
+    color: var(--color-info-dark);
   }
 
-  .profile-status {
-    text-align: center;
-    padding: 0.75rem;
-    border-radius: 8px;
-    margin-bottom: 1rem;
-    font-weight: 500;
-  }
-
-  .status-complete {
-    background: #d1fae5;
-    color: #065f46;
-  }
-
-  .status-incomplete {
-    background: #fef3c7;
-    color: #92400e;
-  }
-
+  /* Form layout */
   .form-intro {
-    text-align: center;
-    color: #6b7280;
-    margin-bottom: 1.5rem;
+    font-size: 0.9375rem;
+    margin-bottom: var(--spacing-lg);
   }
 
   .profile-form {
     display: flex;
     flex-direction: column;
-    gap: 1.5rem;
+    gap: var(--spacing-lg);
   }
 
   .form-group {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: var(--spacing-xs);
   }
 
-  .form-group label {
-    font-weight: 500;
-    color: #374151;
+  .form-label {
     font-size: 0.875rem;
+    font-weight: var(--font-semibold);
+    color: var(--color-text-secondary);
   }
 
-  .phone-input-container {
+  /* Phone row */
+  .phone-input-row {
     display: flex;
-    gap: 0.5rem;
+    gap: var(--spacing-xs);
   }
 
   .country-select {
-    padding: 0.75rem;
-    border: 1px solid #d1d5db;
-    border-radius: 8px;
-    font-size: 1rem;
-    background: white;
+    min-width: 116px;
     cursor: pointer;
-    min-width: 110px;
-  }
-
-  .country-select:focus {
-    outline: none;
-    border-color: #667eea;
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    background: var(--bg-white);
+    color: var(--color-text-primary);
   }
 
   .phone-input {
     flex: 1;
+    width: 100%;
   }
 
   .phone-preview {
     font-size: 0.75rem;
-    color: #667eea;
-    font-weight: 500;
+    font-weight: var(--font-semibold);
   }
 
-  .form-input {
-    padding: 0.75rem 1rem;
-    border: 1px solid var(--border-default);
-    border-radius: 8px;
-    font-size: 1rem;
-    transition:
-      border-color 0.2s,
-      box-shadow 0.2s;
-    background: var(--bg-white) !important;
-    color: var(--color-text-primary) !important;
-  }
-
-  .form-input::placeholder {
-    color: var(--color-text-placeholder) !important;
-  }
-
-  .form-input:focus {
-    outline: none;
-    border-color: var(--color-primary);
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-    background: var(--bg-white) !important;
-    color: var(--color-text-primary) !important;
-  }
-
-  .form-input[readonly] {
+  /* Readonly input */
+  .input-readonly {
     background: var(--bg-lighter) !important;
     color: var(--color-text-muted) !important;
+    cursor: default;
   }
 
-  .coordinates-display {
+  /* Coordinates chip */
+  .coordinates-chip {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
     font-size: 0.75rem;
-    color: #6b7280;
-    text-align: center;
-    padding: 0.5rem;
-    background: #f3f4f6;
-    border-radius: 8px;
+    padding: var(--spacing-xs) var(--spacing-sm);
+    background: var(--bg-lighter);
+    border-radius: var(--radius-xl);
+    width: fit-content;
+    margin: 0 auto;
   }
 
-  .form-error {
-    color: #dc2626;
+  /* Alert */
+  .alert-danger {
     font-size: 0.875rem;
+    color: var(--color-danger-dark);
+    padding: var(--spacing-sm) var(--spacing-md);
+    background: color-mix(in srgb, var(--color-danger) 8%, transparent);
+    border: 1px solid color-mix(in srgb, var(--color-danger) 20%, transparent);
+    border-radius: var(--radius-md);
     text-align: center;
-    padding: 0.75rem;
-    background: #fef2f2;
-    border-radius: 8px;
   }
 
-  .submit-button {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    border: none;
-    padding: 1rem;
-    border-radius: 8px;
-    font-weight: 600;
-    font-size: 1rem;
-    cursor: pointer;
-    transition:
-      transform 0.2s,
-      box-shadow 0.2s,
-      opacity 0.2s;
+  /* Action button */
+  .action-btn {
+    width: 100%;
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-xs);
   }
 
-  .submit-button:hover:not(:disabled) {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-  }
-
-  .submit-button:active:not(:disabled) {
-    transform: translateY(0);
-  }
-
-  .submit-button:disabled {
-    opacity: 0.6;
+  .action-btn:disabled {
+    opacity: 0.55;
     cursor: not-allowed;
+    transform: none !important;
+    box-shadow: none !important;
   }
 
+  /* Footer */
   .app-footer {
-    background: white;
-    padding: 1rem;
+    background: var(--surface-card);
+    padding: var(--spacing-md);
     text-align: center;
-    border-top: 1px solid #e5e7eb;
+    border-top: 1px solid var(--border-light);
   }
 
   .app-footer p {
-    color: #9ca3af;
-    font-size: 0.875rem;
+    font-size: 0.8125rem;
     margin: 0;
   }
 
-  /* Mobile Responsive */
+  /* Mobile */
   @media (max-width: 640px) {
-    .app-header {
-      padding: 0.75rem;
-      flex-wrap: wrap;
-      gap: 0.5rem;
+    .profile-main {
+      padding: var(--spacing-md) var(--spacing-sm);
     }
 
-    .app-title {
-      font-size: 1.1rem;
+    .form-card {
+      padding: var(--spacing-lg) var(--spacing-md);
     }
 
-    .header-actions {
-      width: 100%;
-      justify-content: flex-end;
-    }
-
-    .orders-button,
-    .admin-button {
-      padding: 0.375rem 0.75rem;
-      font-size: 0.8125rem;
-    }
-
-    .main-content {
-      padding: 0.75rem;
-    }
-
-    .profile-form {
-      gap: 1.25rem;
-    }
-
-    .phone-input-container {
+    .phone-input-row {
       flex-direction: column;
     }
 

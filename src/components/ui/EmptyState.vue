@@ -39,7 +39,7 @@ const emit = defineEmits<{
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 3rem 1.5rem;
+  padding: var(--spacing-2xl) var(--spacing-lg);
   text-align: center;
   min-height: 300px;
 }
@@ -48,36 +48,36 @@ const emit = defineEmits<{
   width: 80px;
   height: 80px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--p-surface-100) 0%, var(--p-surface-200) 100%);
+  background: linear-gradient(135deg, var(--vt-c-gray-100) 0%, var(--vt-c-gray-200) 100%);
+  border: 1px solid var(--border-light);
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 1.5rem;
+  margin-bottom: var(--spacing-lg);
 }
 
 .empty-state-icon i {
   font-size: 2rem;
-  color: var(--p-surface-400);
+  color: var(--vt-c-gray-400);
 }
 
 .empty-state-title {
   font-size: 1.25rem;
   font-weight: 600;
-  color: var(--p-surface-700);
-  margin: 0 0 0.5rem;
+  color: var(--color-text-primary);
+  margin: 0 0 var(--spacing-xs);
 }
 
 .empty-state-description {
   font-size: 0.9375rem;
-  color: var(--p-surface-500);
+  color: var(--color-text-muted);
   margin: 0;
   max-width: 300px;
-  line-height: 1.5;
+  line-height: 1.6;
 }
 
-/* Variants */
 .empty-state.compact {
-  padding: 2rem 1rem;
+  padding: var(--spacing-xl) var(--spacing-md);
   min-height: auto;
 }
 

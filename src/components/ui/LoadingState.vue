@@ -15,8 +15,8 @@ withDefaults(defineProps<Props>(), {
 <template>
   <div :class="['loading-state', { fullscreen }]">
     <div class="loading-content">
-      <ProgressSpinner 
-        strokeWidth="4" 
+      <ProgressSpinner
+        strokeWidth="4"
         class="loading-spinner"
       />
       <p class="loading-message">{{ message }}</p>
@@ -29,14 +29,15 @@ withDefaults(defineProps<Props>(), {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 3rem;
+  padding: var(--spacing-2xl);
 }
 
 .loading-state.fullscreen {
   position: fixed;
   inset: 0;
-  background: rgba(255, 255, 255, 0.9);
+  background: color-mix(in srgb, var(--bg-white) 92%, transparent);
   backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
   z-index: 1000;
 }
 
@@ -44,7 +45,7 @@ withDefaults(defineProps<Props>(), {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1rem;
+  gap: var(--spacing-md);
 }
 
 .loading-spinner {
@@ -53,12 +54,12 @@ withDefaults(defineProps<Props>(), {
 }
 
 :deep(.loading-spinner circle) {
-  stroke: var(--p-primary-500);
+  stroke: var(--color-primary);
   stroke-linecap: round;
-  animation: dash 1.5s ease-in-out infinite;
+  animation: spinner-dash 1.5s ease-in-out infinite;
 }
 
-@keyframes dash {
+@keyframes spinner-dash {
   0% {
     stroke-dasharray: 1, 150;
     stroke-dashoffset: 0;
@@ -75,14 +76,13 @@ withDefaults(defineProps<Props>(), {
 
 .loading-message {
   font-size: 0.9375rem;
-  color: var(--p-surface-600);
+  color: var(--color-text-muted);
   font-weight: 500;
   margin: 0;
 }
 
-/* Inline variant */
 .loading-state.inline {
-  padding: 1rem;
+  padding: var(--spacing-md);
 }
 
 .loading-state.inline .loading-spinner {

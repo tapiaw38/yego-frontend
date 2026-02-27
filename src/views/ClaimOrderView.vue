@@ -72,46 +72,42 @@
 </script>
 
 <template>
-  <div class="claim-container">
-    <div class="claim-background">
-      <div class="claim-shapes">
-        <div class="shape shape-1"></div>
-        <div class="shape shape-2"></div>
-      </div>
+  <div class="claim-container gradient-background">
+    <div class="claim-background" aria-hidden="true">
+      <div class="shape shape-1"></div>
+      <div class="shape shape-2"></div>
     </div>
 
     <div class="claim-content">
-      <div class="claim-header">
-        <div class="logo-container">
-          <div class="logo-icon">
-            <span>W</span>
-          </div>
-          <h1 class="logo-text">Yego</h1>
+      <header class="claim-header">
+        <div class="logo-icon gradient-primary">
+          <span class="text-white">W</span>
         </div>
-      </div>
+        <h1 class="logo-text">Yego</h1>
+      </header>
 
       <div class="claim-card">
         <!-- Loading State -->
         <div v-if="loading" class="state-container">
-          <div class="state-icon loading-icon">
+          <div class="state-icon gradient-primary">
             <div class="spinner"></div>
           </div>
-          <h2 class="state-title">Cargando...</h2>
-          <p class="state-description">Estamos preparando tu orden...</p>
+          <h2 class="state-title text-gray-800">Cargando...</h2>
+          <p class="state-description text-gray-500">Estamos preparando tu orden...</p>
         </div>
 
         <!-- Claim Form -->
         <div v-else-if="!claimedOrder" class="state-container">
-          <div class="state-icon claim-icon">
-            <i class="pi pi-shopping-bag"></i>
+          <div class="state-icon gradient-primary">
+            <i class="pi pi-shopping-bag text-white"></i>
           </div>
-          <h2 class="state-title">Reclamar Pedido</h2>
-          <p class="state-description">
-            Al reclamar este pedido quedará asociado a tu cuenta y podrás
+          <h2 class="state-title text-gray-800">Reclamar Pedido</h2>
+          <p class="state-description text-gray-500">
+            Al reclamar este pedido quedara asociado a tu cuenta y podras
             realizar el pago.
           </p>
 
-          <div v-if="error" class="error-message">
+          <div v-if="error" class="alert-danger">
             <i class="pi pi-exclamation-triangle"></i>
             {{ error }}
           </div>
@@ -120,44 +116,42 @@
             label="Reclamar Pedido"
             @click="claimOrder"
             :loading="claiming"
-            class="submit-button"
+            class="claim-button"
           />
         </div>
 
         <!-- Success State -->
-        <div v-else class="state-container success">
-          <div class="state-icon success-icon">
-            <i class="pi pi-check-circle"></i>
+        <div v-else class="state-container">
+          <div class="state-icon gradient-success">
+            <i class="pi pi-check-circle text-white"></i>
           </div>
-          <h2 class="state-title">¡Pedido Reclamado!</h2>
-          <p class="state-description">
-            Tu pedido ha sido asociado a tu cuenta. Ahora podés realizar el pago
+          <h2 class="state-title text-gray-800">Pedido Reclamado!</h2>
+          <p class="state-description text-gray-500">
+            Tu pedido ha sido asociado a tu cuenta. Ahora podes realizar el pago
             desde la vista del pedido.
           </p>
 
           <div class="order-details">
             <div class="detail-row">
-              <span class="detail-label">ID de Orden</span>
-              <span class="detail-value"
-                >{{ claimedOrder.order_id.slice(0, 8) }}...</span
-              >
+              <span class="detail-label text-gray-500">ID de Orden</span>
+              <span class="detail-value text-gray-800">
+                {{ claimedOrder.order_id.slice(0, 8) }}...
+              </span>
             </div>
             <div class="detail-row">
-              <span class="detail-label">Estado</span>
-              <span class="detail-value status-badge">
-                <i
-                  :class="['pi', StatusIcons[claimedOrder.status] || 'pi-box']"
-                ></i>
+              <span class="detail-label text-gray-500">Estado</span>
+              <span class="status-chip gradient-primary">
+                <i :class="['pi', StatusIcons[claimedOrder.status] || 'pi-box']"></i>
                 {{ StatusLabels[claimedOrder.status] }}
               </span>
             </div>
           </div>
 
           <div class="action-buttons">
-            <button class="primary-button" @click="goToOrder">
+            <button class="btn-primary action-btn" @click="goToOrder">
               Ver y Pagar Pedido
             </button>
-            <button class="secondary-button" @click="goToProfile">
+            <button class="btn-secondary action-btn" @click="goToProfile">
               Ir a Mi Perfil
             </button>
           </div>
@@ -168,6 +162,7 @@
 </template>
 
 <style scoped>
+  /* Layout */
   .claim-container {
     min-height: 100vh;
     width: 100%;
@@ -176,29 +171,20 @@
     justify-content: center;
     position: relative;
     overflow: hidden;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   }
 
+  /* Animated background shapes */
   .claim-background {
     position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    overflow: hidden;
-  }
-
-  .claim-shapes {
-    position: relative;
-    width: 100%;
-    height: 100%;
+    inset: 0;
+    pointer-events: none;
   }
 
   .shape {
     position: absolute;
-    background: rgba(255, 255, 255, 0.1);
-    animation: float 6s ease-in-out infinite;
+    background: var(--bg-transparent);
     border-radius: 50%;
+    animation: float 6s ease-in-out infinite;
   }
 
   .shape-1 {
@@ -218,313 +204,200 @@
   }
 
   @keyframes float {
-    0%,
-    100% {
-      transform: translateY(0px) rotate(0deg);
-    }
-    50% {
-      transform: translateY(-20px) rotate(10deg);
-    }
+    0%, 100% { transform: translateY(0px) rotate(0deg); }
+    50%       { transform: translateY(-20px) rotate(10deg); }
   }
 
+  /* Content wrapper */
   .claim-content {
     position: relative;
     z-index: 10;
     width: 100%;
     max-width: 480px;
-    padding: 2rem;
+    padding: var(--spacing-xl);
   }
 
+  /* Header / logo */
   .claim-header {
-    text-align: center;
-    margin-bottom: 2rem;
-  }
-
-  .logo-container {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 0.75rem;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-xl);
   }
 
   .logo-icon {
     width: 3.5rem;
     height: 3.5rem;
-    background: white;
-    border-radius: 12px;
+    border-radius: var(--radius-md);
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 8px 32px var(--shadow-heavy);
   }
 
   .logo-icon span {
     font-size: 1.75rem;
-    font-weight: 700;
-    color: #667eea;
+    font-weight: var(--font-bold);
   }
 
   .logo-text {
     font-size: 2rem;
-    font-weight: 700;
-    color: white;
+    font-weight: var(--font-bold);
+    color: var(--color-text-white);
     margin: 0;
-    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+    text-shadow: 0 2px 10px var(--shadow-heavy);
   }
 
+  /* Card */
   .claim-card {
-    background: rgba(255, 255, 255, 0.95);
+    background: var(--surface-card);
     backdrop-filter: blur(10px);
-    border-radius: 16px;
-    padding: 2rem;
-    box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15);
-    animation: slideUp 0.5s ease-out;
+    border-radius: var(--radius-xl);
+    padding: var(--spacing-xl);
+    box-shadow: 0 25px 50px var(--shadow-heavy);
+    animation: slideUp var(--transition-slow) ease-out;
   }
 
   @keyframes slideUp {
-    from {
-      opacity: 0;
-      transform: translateY(20px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
+    from { opacity: 0; transform: translateY(20px); }
+    to   { opacity: 1; transform: translateY(0); }
   }
 
+  /* State containers */
   .state-container {
     text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--spacing-sm);
   }
 
   .state-icon {
     width: 4rem;
     height: 4rem;
     border-radius: 50%;
-    margin: 0 auto 1.5rem;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 2rem;
-    color: white;
+    font-size: 1.75rem;
+    margin-bottom: var(--spacing-xs);
   }
 
-  .loading-icon {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  }
-
-  .claim-icon {
-    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-  }
-
-  .success-icon {
-    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-  }
-
-  .error-icon {
-    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-  }
-
+  /* Spinner inside state-icon */
   .spinner {
     width: 32px;
     height: 32px;
-    border: 3px solid rgba(255, 255, 255, 0.3);
-    border-top-color: white;
+    border: 3px solid var(--border-white);
+    border-top-color: var(--color-text-white);
     border-radius: 50%;
-    animation: spin 1s linear infinite;
+    animation: spin 0.8s linear infinite;
   }
 
   @keyframes spin {
-    to {
-      transform: rotate(360deg);
-    }
+    to { transform: rotate(360deg); }
   }
 
   .state-title {
     font-size: 1.5rem;
-    font-weight: 600;
-    color: #1f2937;
-    margin: 0 0 0.5rem 0;
+    font-weight: var(--font-semibold);
+    margin: 0;
   }
 
   .state-description {
-    color: #6b7280;
-    margin: 0 0 1.5rem 0;
+    margin: 0;
+    font-size: 0.9375rem;
+    line-height: 1.6;
+    max-width: 34ch;
   }
 
-  .no-payment-method {
-    background: #fef3c7;
-    border: 1px solid #fbbf24;
-    border-radius: 8px;
-    padding: 1.5rem;
-    margin: 1rem 0;
-    text-align: center;
-  }
-
-  .no-payment-method i {
-    font-size: 2rem;
-    color: #f59e0b;
-    margin-bottom: 0.5rem;
-  }
-
-  .no-payment-method p {
-    color: #92400e;
-    margin: 0.5rem 0 1rem 0;
-  }
-
-  .add-card-button {
-    background: #f59e0b !important;
-    border-color: #f59e0b !important;
-  }
-
-  .payment-form {
-    text-align: left;
-  }
-
-  .form-group {
-    margin-bottom: 1.5rem;
-  }
-
-  .form-group label {
-    display: block;
-    margin-bottom: 0.5rem;
-    color: #374151;
-    font-weight: 500;
-    font-size: 0.875rem;
-  }
-
-  .form-group small {
-    display: block;
-    margin-top: 0.25rem;
-    color: #6b7280;
-    font-size: 0.75rem;
-  }
-
-  .payment-dropdown,
-  .cvv-input {
+  /* Error alert */
+  .alert-danger {
     width: 100%;
-  }
-
-  .payment-method-value,
-  .payment-method-option {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-  }
-
-  .cardholder {
-    color: #6b7280;
+    gap: var(--spacing-xs);
     font-size: 0.875rem;
-    margin-left: auto;
+    color: var(--color-danger-dark);
+    padding: var(--spacing-sm) var(--spacing-md);
+    background: color-mix(in srgb, var(--color-danger) 10%, transparent);
+    border: 1px solid color-mix(in srgb, var(--color-danger) 25%, transparent);
+    border-radius: var(--radius-md);
   }
 
-  .error-message {
-    background: #fee2e2;
-    border: 1px solid #fca5a5;
-    color: #991b1b;
-    padding: 0.75rem;
-    border-radius: 6px;
-    margin-bottom: 1rem;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-size: 0.875rem;
+  /* Claim button — full-width override of btn-primary */
+  .claim-button {
+    width: 100% !important;
+    margin-top: var(--spacing-xs);
   }
 
-  .submit-button {
-    width: 100%;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
-    border: none !important;
-    padding: 0.875rem !important;
-    font-weight: 600 !important;
-  }
-
+  /* Order details */
   .order-details {
-    background: #f9fafb;
-    border-radius: 12px;
-    padding: 1rem;
-    margin-bottom: 1.5rem;
+    width: 100%;
+    background: var(--bg-light);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-sm) var(--spacing-md);
+    margin-top: var(--spacing-xs);
   }
 
   .detail-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 0.5rem 0;
+    padding: var(--spacing-xs) 0;
   }
 
   .detail-row:not(:last-child) {
-    border-bottom: 1px solid #e5e7eb;
+    border-bottom: 1px solid var(--border-light);
   }
 
   .detail-label {
-    color: #6b7280;
     font-size: 0.875rem;
   }
 
   .detail-value {
-    color: #1f2937;
-    font-weight: 500;
-  }
-
-  .status-badge {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    padding: 0.25rem 0.75rem;
-    border-radius: 9999px;
+    font-weight: var(--font-semibold);
     font-size: 0.875rem;
-    display: flex;
-    align-items: center;
-    gap: 0.25rem;
   }
 
+  .status-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.25rem var(--spacing-sm);
+    border-radius: var(--radius-xl);
+    font-size: 0.8125rem;
+    font-weight: var(--font-semibold);
+    color: var(--color-text-white);
+  }
+
+  /* Action buttons */
   .action-buttons {
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
+    gap: var(--spacing-sm);
+    width: 100%;
+    margin-top: var(--spacing-xs);
   }
 
-  .primary-button {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    border: none;
-    padding: 0.875rem 1rem;
-    border-radius: 8px;
-    font-weight: 600;
+  .action-btn {
+    width: 100%;
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-radius: var(--radius-md);
     font-size: 1rem;
-    cursor: pointer;
-    transition:
-      transform 0.2s,
-      box-shadow 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
-  .primary-button:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-  }
-
-  .secondary-button {
-    background: white;
-    color: #667eea;
-    border: 2px solid #667eea;
-    padding: 0.75rem 1rem;
-    border-radius: 8px;
-    font-weight: 600;
-    font-size: 1rem;
-    cursor: pointer;
-    transition: background 0.2s;
-  }
-
-  .secondary-button:hover {
-    background: #f5f3ff;
-  }
-
+  /* Mobile */
   @media (max-width: 480px) {
     .claim-content {
-      padding: 1rem;
+      padding: var(--spacing-md);
     }
 
     .claim-card {
-      padding: 1.5rem;
+      padding: var(--spacing-lg);
     }
 
     .logo-text {

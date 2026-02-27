@@ -26,7 +26,7 @@ const colorClasses: Record<string, string> = {
 </script>
 
 <template>
-  <Card class="stat-card">
+  <Card class="stat-card card-modern hover-lift">
     <template #content>
       <div class="stat-content">
         <div :class="['stat-icon', colorClasses[color]]">
@@ -37,7 +37,7 @@ const colorClasses: Record<string, string> = {
           <span class="stat-value">{{ value }}</span>
           <div v-if="trend !== 0" class="stat-trend">
             <i :class="trend > 0 ? 'pi pi-arrow-up' : 'pi pi-arrow-down'"></i>
-            <span :class="trend > 0 ? 'trend-up' : 'trend-down'">
+            <span :class="trend > 0 ? 'text-success' : 'text-danger'">
               {{ Math.abs(trend) }}% {{ trendLabel }}
             </span>
           </div>
@@ -48,24 +48,16 @@ const colorClasses: Record<string, string> = {
 </template>
 
 <style scoped>
-.stat-card {
-  transition: all 0.3s ease;
-}
-
-.stat-card:hover {
-  transform: translateY(-4px);
-}
-
 .stat-content {
   display: flex;
   align-items: flex-start;
-  gap: 1rem;
+  gap: var(--spacing-md);
 }
 
 .stat-icon {
   width: 48px;
   height: 48px;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -74,27 +66,27 @@ const colorClasses: Record<string, string> = {
 
 .stat-icon i {
   font-size: 1.25rem;
-  color: white;
+  color: var(--color-text-white);
 }
 
 .stat-icon.bg-primary {
-  background: linear-gradient(135deg, var(--p-primary-500), var(--p-primary-600));
+  background: var(--gradient-primary);
 }
 
 .stat-icon.bg-success {
-  background: linear-gradient(135deg, var(--p-success-500), var(--p-success-600));
+  background: var(--gradient-success);
 }
 
 .stat-icon.bg-info {
-  background: linear-gradient(135deg, var(--p-info-500), var(--p-info-600));
+  background: var(--gradient-info);
 }
 
 .stat-icon.bg-warn {
-  background: linear-gradient(135deg, var(--p-warn-500), var(--p-warn-600));
+  background: var(--gradient-warning);
 }
 
 .stat-icon.bg-danger {
-  background: linear-gradient(135deg, var(--p-danger-500), var(--p-danger-600));
+  background: var(--gradient-danger);
 }
 
 .stat-info {
@@ -105,14 +97,14 @@ const colorClasses: Record<string, string> = {
 
 .stat-title {
   font-size: 0.875rem;
-  color: var(--p-surface-500);
+  color: var(--color-text-muted);
   font-weight: 500;
 }
 
 .stat-value {
   font-size: 1.5rem;
   font-weight: 700;
-  color: var(--p-surface-800);
+  color: var(--color-text-primary);
   line-height: 1.2;
 }
 
@@ -126,13 +118,5 @@ const colorClasses: Record<string, string> = {
 
 .stat-trend i {
   font-size: 0.625rem;
-}
-
-.trend-up {
-  color: var(--p-success-600);
-}
-
-.trend-down {
-  color: var(--p-danger-600);
 }
 </style>

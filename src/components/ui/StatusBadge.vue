@@ -25,9 +25,9 @@ const config = statusConfig[props.status] || { severity: 'secondary', icon: 'pi 
 </script>
 
 <template>
-  <Tag 
-    :value="config.label" 
-    :severity="config.severity" 
+  <Tag
+    :value="config.label"
+    :severity="config.severity"
     :icon="config.icon"
     :class="['status-badge', `status-${status.toLowerCase().replace(/_/g, '-')}`, `size-${size}`]"
   />
@@ -37,69 +37,70 @@ const config = statusConfig[props.status] || { severity: 'secondary', icon: 'pi 
 .status-badge {
   font-weight: 600;
   letter-spacing: 0.025em;
+  border-width: 1px;
+  border-style: solid;
 }
 
 .status-badge.size-small {
   font-size: 0.625rem;
-  padding: 0.25rem 0.5rem;
+  padding: var(--spacing-xs) calc(var(--spacing-xs) * 1.25);
 }
 
 .status-badge.size-normal {
   font-size: 0.75rem;
-  padding: 0.375rem 0.75rem;
+  padding: calc(var(--spacing-xs) * 0.75) var(--spacing-sm);
 }
 
 .status-badge.size-large {
   font-size: 0.875rem;
-  padding: 0.5rem 1rem;
+  padding: var(--spacing-xs) var(--spacing-md);
 }
 
-/* Custom colors for specific statuses */
 :deep(.status-created) {
-  background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
-  color: #475569;
-  border: 1px solid #cbd5e1;
+  background: linear-gradient(135deg, var(--vt-c-gray-100) 0%, var(--vt-c-gray-200) 100%);
+  color: var(--vt-c-gray-600);
+  border-color: var(--vt-c-gray-300);
 }
 
 :deep(.status-confirmed) {
-  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
-  color: #1d4ed8;
-  border: 1px solid #93c5fd;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--color-info) 12%, white) 0%, color-mix(in srgb, var(--color-info) 22%, white) 100%);
+  color: var(--color-info-dark);
+  border-color: color-mix(in srgb, var(--color-info) 40%, white);
 }
 
 :deep(.status-preparing) {
-  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
-  color: #b45309;
-  border: 1px solid #fcd34d;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--color-warning) 12%, white) 0%, color-mix(in srgb, var(--color-warning) 25%, white) 100%);
+  color: var(--color-warning-dark);
+  border-color: color-mix(in srgb, var(--color-warning) 45%, white);
 }
 
 :deep(.status-on-the-way) {
-  background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
-  color: #4338ca;
-  border: 1px solid #a5b4fc;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--color-primary) 12%, white) 0%, color-mix(in srgb, var(--color-primary) 22%, white) 100%);
+  color: var(--color-primary-dark);
+  border-color: color-mix(in srgb, var(--color-primary) 35%, white);
 }
 
 :deep(.status-delivered) {
-  background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
-  color: #047857;
-  border: 1px solid #6ee7b7;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--color-success) 12%, white) 0%, color-mix(in srgb, var(--color-success) 25%, white) 100%);
+  color: var(--color-success-dark);
+  border-color: color-mix(in srgb, var(--color-success) 40%, white);
 }
 
 :deep(.status-cancelled) {
-  background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
-  color: #b91c1c;
-  border: 1px solid #fca5a5;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--color-danger) 12%, white) 0%, color-mix(in srgb, var(--color-danger) 22%, white) 100%);
+  color: var(--color-danger-dark);
+  border-color: color-mix(in srgb, var(--color-danger) 40%, white);
 }
 
 :deep(.status-paused) {
-  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
-  color: #b45309;
-  border: 1px solid #fcd34d;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--color-warning) 12%, white) 0%, color-mix(in srgb, var(--color-warning) 25%, white) 100%);
+  color: var(--color-warning-dark);
+  border-color: color-mix(in srgb, var(--color-warning) 45%, white);
 }
 
 :deep(.status-modification-requested) {
-  background: linear-gradient(135deg, #ffedd5 0%, #fed7aa 100%);
-  color: #c2410c;
-  border: 1px solid #fdba74;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--color-warning) 18%, white) 0%, color-mix(in srgb, var(--color-warning-dark) 28%, white) 100%);
+  color: var(--color-warning-dark);
+  border-color: color-mix(in srgb, var(--color-warning-dark) 45%, white);
 }
 </style>

@@ -99,28 +99,33 @@
       @back="goBack"
     />
 
-    <main class="main-content">
+    <main class="orders-main">
       <!-- Loading State -->
-      <div v-if="loading" class="loading-state">
+      <div v-if="loading" class="feedback-state">
         <div class="spinner"></div>
-        <p>Cargando pedidos...</p>
+        <p class="text-gray-500">Cargando pedidos...</p>
       </div>
 
       <!-- Error State -->
-      <div v-else-if="error" class="error-state">
-        <div class="error-icon"><i class="pi pi-exclamation-triangle"></i></div>
-        <h2>Error</h2>
-        <p>{{ error }}</p>
-        <button @click="fetchOrders" class="retry-button">
+      <div v-else-if="error" class="feedback-state">
+        <div class="state-icon-wrap gradient-danger">
+          <i class="pi pi-exclamation-triangle text-white"></i>
+        </div>
+        <h2 class="text-gray-800">Error</h2>
+        <p class="text-gray-500">{{ error }}</p>
+        <button @click="fetchOrders" class="btn-primary retry-btn">
+          <i class="pi pi-refresh"></i>
           Intentar de nuevo
         </button>
       </div>
 
       <!-- Empty State -->
-      <div v-else-if="orders.length === 0" class="empty-state">
-        <div class="empty-icon"><i class="pi pi-box"></i></div>
-        <h2>Sin pedidos</h2>
-        <p>Aun no tienes pedidos realizados</p>
+      <div v-else-if="orders.length === 0" class="feedback-state">
+        <div class="state-icon-wrap gradient-primary">
+          <i class="pi pi-box text-white"></i>
+        </div>
+        <h2 class="text-gray-800">Sin pedidos</h2>
+        <p class="text-gray-500">Aun no tienes pedidos realizados</p>
       </div>
 
       <!-- Orders List -->
@@ -128,58 +133,52 @@
         <div
           v-for="order in orders"
           :key="order.id"
-          class="order-card"
+          class="order-card card-modern hover-lift"
           @click="goToOrder(order.id)"
+          role="button"
+          tabindex="0"
+          @keydown.enter="goToOrder(order.id)"
         >
           <div class="order-header">
             <span :class="['status-badge', getStatusClass(order.status)]">
               {{ StatusIcons[order.status] }} {{ StatusLabels[order.status] }}
             </span>
-            <span class="order-date">{{ formatDate(order.created_at) }}</span>
+            <span class="order-date text-gray-500">{{ formatDate(order.created_at) }}</span>
           </div>
 
           <div class="order-body">
             <div class="order-info">
-              <div class="order-id">
-                <span class="label">Pedido:</span>
-                <span class="value">#{{ order.id.slice(0, 8) }}</span>
+              <div class="order-meta-item">
+                <span class="meta-label text-gray-400">Pedido</span>
+                <span class="meta-value text-gray-800">#{{ order.id.slice(0, 8) }}</span>
               </div>
-              <div v-if="order.eta" class="order-eta">
-                <span class="label">ETA:</span>
-                <span class="value">{{ order.eta }}</span>
+              <div v-if="order.eta" class="order-meta-item">
+                <span class="meta-label text-gray-400">ETA</span>
+                <span class="meta-value text-gray-800">{{ order.eta }}</span>
               </div>
             </div>
 
             <div v-if="order.data?.items" class="order-items">
               <div class="items-summary">
-                <span class="items-count"
-                  >{{ order.data.items.length }} producto(s)</span
-                >
-                <span class="items-total">{{
-                  formatPrice(calculateOrderTotal(order.data))
-                }}</span>
+                <span class="items-count text-gray-500">
+                  {{ order.data.items.length }} producto(s)
+                </span>
+                <span class="items-total text-primary">
+                  {{ formatPrice(calculateOrderTotal(order.data)) }}
+                </span>
               </div>
-              <div class="items-preview">
+              <p class="items-preview text-gray-400">
                 <span
                   v-for="(item, index) in order.data.items.slice(0, 3)"
                   :key="index"
-                  class="item-name"
-                >
-                  {{ item.name
-                  }}<span
-                    v-if="index < Math.min(order.data.items.length, 3) - 1"
-                    >,
-                  </span>
-                </span>
-                <span v-if="order.data.items.length > 3" class="more-items">
-                  y {{ order.data.items.length - 3 }} mas...
-                </span>
-              </div>
+                >{{ item.name }}<span v-if="index < Math.min(order.data.items.length, 3) - 1">, </span></span>
+                <em v-if="order.data.items.length > 3"> y {{ order.data.items.length - 3 }} mas...</em>
+              </p>
             </div>
           </div>
 
           <div class="order-footer">
-            <span class="view-details">Ver detalle &rarr;</span>
+            <span class="view-details text-primary">Ver detalle &rarr;</span>
           </div>
         </div>
       </div>
@@ -187,7 +186,7 @@
 
     <footer class="app-footer">
       <img :src="yegoLogo" alt="Yego" class="footer-logo" />
-      <p>Powered by Gillie AI</p>
+      <p class="text-gray-400">Powered by Gillie AI</p>
     </footer>
   </div>
 </template>
@@ -200,278 +199,237 @@
     background: var(--surface-ground);
   }
 
-  .main-content {
+  /* Main content */
+  .orders-main {
     flex: 1;
-    padding: 1rem;
+    padding: var(--spacing-lg) var(--spacing-md);
     max-width: 640px;
     margin: 0 auto;
     width: 100%;
   }
 
-  .loading-state,
-  .error-state,
-  .empty-state {
+  /* Feedback states */
+  .feedback-state {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 3rem 1rem;
+    padding: var(--spacing-2xl) var(--spacing-md);
     text-align: center;
+    gap: var(--spacing-sm);
   }
 
+  .feedback-state h2 {
+    font-size: 1.25rem;
+    font-weight: var(--font-semibold);
+  }
+
+  .state-icon-wrap {
+    width: 4rem;
+    height: 4rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.75rem;
+    margin-bottom: var(--spacing-xs);
+  }
+
+  /* Spinner */
   .spinner {
     width: 48px;
     height: 48px;
-    border: 4px solid #e5e7eb;
-    border-top-color: #667eea;
+    border: 3px solid var(--border-light);
+    border-top-color: var(--color-primary);
     border-radius: 50%;
-    animation: spin 1s linear infinite;
-    margin-bottom: 1rem;
+    animation: spin 0.8s linear infinite;
   }
 
   @keyframes spin {
-    to {
-      transform: rotate(360deg);
-    }
+    to { transform: rotate(360deg); }
   }
 
-  .error-icon,
-  .empty-icon {
-    font-size: 4rem;
-    margin-bottom: 1rem;
+  /* Retry button */
+  .retry-btn {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    padding: var(--spacing-sm) var(--spacing-lg);
+    border-radius: var(--radius-md);
+    margin-top: var(--spacing-xs);
   }
 
-  .error-state h2,
-  .empty-state h2 {
-    color: #1f2937;
-    margin-bottom: 0.5rem;
-  }
-
-  .error-state p,
-  .empty-state p {
-    color: #6b7280;
-    margin-bottom: 1.5rem;
-  }
-
-  .retry-button {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    border: none;
-    padding: 0.75rem 1.5rem;
-    border-radius: 8px;
-    font-weight: 500;
-    cursor: pointer;
-    transition:
-      transform 0.2s,
-      box-shadow 0.2s;
-  }
-
-  .retry-button:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-  }
-
+  /* Orders list */
   .orders-list {
     display: flex;
     flex-direction: column;
-    gap: 1rem;
+    gap: var(--spacing-md);
   }
 
+  /* Order card */
   .order-card {
-    background: white;
-    border-radius: 12px;
-    padding: 1rem;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-    border: 1px solid #e5e7eb;
+    padding: var(--spacing-md);
     cursor: pointer;
-    transition:
-      transform 0.2s,
-      box-shadow 0.2s;
+    animation: fadeUp var(--transition-normal) both;
   }
 
-  .order-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
   }
 
+  /* Order header */
   .order-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 0.75rem;
-  }
-
-  .status-badge {
-    font-size: 0.75rem;
-    font-weight: 600;
-    padding: 0.25rem 0.5rem;
-    border-radius: 20px;
-  }
-
-  .status-delivered {
-    background: #d1fae5;
-    color: #065f46;
-  }
-
-  .status-cancelled {
-    background: #fee2e2;
-    color: #991b1b;
-  }
-
-  .status-paused {
-    background: #fef3c7;
-    color: #92400e;
-  }
-
-  .status-on-way {
-    background: #dbeafe;
-    color: #1e40af;
-  }
-
-  .status-pending {
-    background: #f3f4f6;
-    color: #374151;
+    margin-bottom: var(--spacing-sm);
   }
 
   .order-date {
     font-size: 0.75rem;
-    color: #6b7280;
   }
 
+  /* Status badges */
+  .status-badge {
+    font-size: 0.75rem;
+    font-weight: var(--font-semibold);
+    padding: 0.25rem var(--spacing-sm);
+    border-radius: var(--radius-xl);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+
+  .status-delivered {
+    background: color-mix(in srgb, var(--color-success) 15%, transparent);
+    color: var(--color-success-dark);
+  }
+
+  .status-cancelled {
+    background: color-mix(in srgb, var(--color-danger) 15%, transparent);
+    color: var(--color-danger-dark);
+  }
+
+  .status-paused {
+    background: color-mix(in srgb, var(--color-warning) 15%, transparent);
+    color: var(--color-warning-dark);
+  }
+
+  .status-on-way {
+    background: color-mix(in srgb, var(--color-info) 15%, transparent);
+    color: var(--color-info-dark);
+  }
+
+  .status-pending {
+    background: var(--vt-c-gray-100);
+    color: var(--vt-c-gray-700);
+  }
+
+  /* Order body */
   .order-body {
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
+    gap: var(--spacing-sm);
   }
 
   .order-info {
     display: flex;
-    gap: 1.5rem;
+    gap: var(--spacing-lg);
   }
 
-  .order-id,
-  .order-eta {
+  .order-meta-item {
     display: flex;
     flex-direction: column;
     gap: 0.125rem;
   }
 
-  .label {
-    font-size: 0.75rem;
-    color: #9ca3af;
+  .meta-label {
+    font-size: 0.6875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-weight: var(--font-medium);
   }
 
-  .value {
+  .meta-value {
     font-size: 0.875rem;
-    font-weight: 500;
-    color: #1f2937;
+    font-weight: var(--font-semibold);
   }
 
+  /* Order items */
   .order-items {
-    padding-top: 0.75rem;
-    border-top: 1px solid #f3f4f6;
+    padding-top: var(--spacing-sm);
+    border-top: 1px solid var(--border-light);
   }
 
   .items-summary {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.375rem;
   }
 
   .items-count {
-    font-size: 0.875rem;
-    color: #6b7280;
+    font-size: 0.8125rem;
   }
 
   .items-total {
     font-size: 1rem;
-    font-weight: 700;
-    color: #667eea;
+    font-weight: var(--font-bold);
   }
 
   .items-preview {
     font-size: 0.75rem;
-    color: #9ca3af;
-    line-height: 1.4;
+    line-height: 1.5;
+    margin: 0;
   }
 
-  .item-name {
-    color: #6b7280;
-  }
-
-  .more-items {
-    color: #9ca3af;
-    font-style: italic;
-  }
-
+  /* Order footer */
   .order-footer {
-    margin-top: 0.75rem;
-    padding-top: 0.75rem;
-    border-top: 1px solid #f3f4f6;
+    margin-top: var(--spacing-sm);
+    padding-top: var(--spacing-sm);
+    border-top: 1px solid var(--border-light);
     text-align: right;
   }
 
   .view-details {
-    font-size: 0.875rem;
-    color: #667eea;
-    font-weight: 500;
+    font-size: 0.8125rem;
+    font-weight: var(--font-semibold);
   }
 
+  /* Footer */
   .app-footer {
-    background: white;
-    padding: 1rem;
+    background: var(--surface-card);
+    padding: var(--spacing-md);
     text-align: center;
-    border-top: 1px solid #e5e7eb;
+    border-top: 1px solid var(--border-light);
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 0.5rem;
+    gap: var(--spacing-xs);
   }
 
   .footer-logo {
     height: 24px;
     width: auto;
-    opacity: 0.7;
+    opacity: 0.6;
   }
 
   .app-footer p {
-    color: #9ca3af;
-    font-size: 0.875rem;
+    font-size: 0.8125rem;
     margin: 0;
   }
 
-  /* Mobile Responsive */
+  /* Mobile */
   @media (max-width: 640px) {
-    .app-header {
-      padding: 0.75rem;
-    }
-
-    .back-button {
-      font-size: 1.25rem;
-      padding: 0.375rem;
-    }
-
-    .header-logo {
-      height: 24px;
-    }
-
-    .app-title {
-      font-size: 1.1rem;
-    }
-
-    .main-content {
-      padding: 0.75rem;
+    .orders-main {
+      padding: var(--spacing-md) var(--spacing-sm);
     }
 
     .order-header {
       flex-direction: column;
       align-items: flex-start;
-      gap: 0.5rem;
-    }
-
-    .order-date {
-      font-size: 0.6875rem;
+      gap: var(--spacing-xs);
     }
 
     .items-summary {

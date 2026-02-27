@@ -38,210 +38,270 @@ const isModificationRequested = computed(() => props.order.status === 'MODIFICAT
 <template>
   <div class="timeline-container">
     <!-- Cancelled State -->
-    <div v-if="isCancelled" class="status-banner cancelled-banner">
-      <span class="banner-icon"><i class="pi pi-times-circle"></i></span>
-      <span class="banner-text">Pedido Cancelado</span>
+    <div v-if="isCancelled" class="status-banner status-banner--danger">
+      <div class="status-banner__icon-wrap status-banner__icon-wrap--danger">
+        <i class="pi pi-times-circle"></i>
+      </div>
+      <div class="status-banner__body">
+        <span class="status-banner__title text-danger">Pedido Cancelado</span>
+        <span class="status-banner__subtitle text-gray-500">Este pedido ha sido cancelado y no puede ser procesado.</span>
+      </div>
     </div>
 
     <!-- Paused State -->
-    <div v-else-if="isPaused" class="status-banner paused-banner">
-      <span class="banner-icon"><i class="pi pi-pause"></i></span>
-      <span class="banner-text">Pedido Pausado</span>
+    <div v-else-if="isPaused" class="status-banner status-banner--warning">
+      <div class="status-banner__icon-wrap status-banner__icon-wrap--warning">
+        <i class="pi pi-pause-circle"></i>
+      </div>
+      <div class="status-banner__body">
+        <span class="status-banner__title text-warning">Pedido Pausado</span>
+        <span class="status-banner__subtitle text-gray-500">Tu pedido está en pausa temporalmente.</span>
+      </div>
     </div>
 
     <!-- Modification Requested State -->
-    <div v-else-if="isModificationRequested" class="status-banner modification-banner">
-      <span class="banner-icon"><i class="pi pi-pencil"></i></span>
-      <span class="banner-text">Modificación Solicitada</span>
+    <div v-else-if="isModificationRequested" class="status-banner status-banner--info">
+      <div class="status-banner__icon-wrap status-banner__icon-wrap--info">
+        <i class="pi pi-pencil"></i>
+      </div>
+      <div class="status-banner__body">
+        <span class="status-banner__title text-info">Modificación Solicitada</span>
+        <span class="status-banner__subtitle text-gray-500">El administrador revisará tu solicitud de cambio.</span>
+      </div>
     </div>
 
     <!-- Normal Timeline -->
-    <div v-else class="timeline">
-      <div
+    <ol v-else class="timeline" aria-label="Estado del pedido">
+      <li
         v-for="(item, index) in timelineStatuses"
         :key="item.status"
         class="timeline-item"
         :class="{
-          'is-completed': item.isCompleted,
-          'is-current': item.isCurrent,
-          'is-pending': item.isPending
+          'timeline-item--completed': item.isCompleted,
+          'timeline-item--current': item.isCurrent,
+          'timeline-item--pending': item.isPending
         }"
       >
-        <div class="timeline-marker">
-          <div class="marker-circle">
-            <span v-if="item.isCompleted" class="check-icon"><i class="pi pi-check"></i></span>
-            <i v-else :class="['pi', item.icon, 'status-icon']"></i>
+        <div class="timeline-item__track">
+          <div class="timeline-item__marker" :aria-label="item.label">
+            <i v-if="item.isCompleted" class="pi pi-check"></i>
+            <i v-else :class="['pi', item.icon]"></i>
           </div>
-          <div v-if="index < timelineStatuses.length - 1" class="marker-line"></div>
+          <div v-if="index < timelineStatuses.length - 1" class="timeline-item__line"></div>
         </div>
-        <div class="timeline-content">
-          <span class="status-label">{{ item.label }}</span>
+
+        <div class="timeline-item__content">
+          <span class="timeline-item__label">{{ item.label }}</span>
+          <span v-if="item.isCurrent" class="timeline-item__current-chip">En curso</span>
         </div>
-      </div>
-    </div>
+      </li>
+    </ol>
   </div>
 </template>
 
 <style scoped>
 .timeline-container {
-  padding: 1rem;
+  padding: var(--spacing-sm) var(--spacing-md);
 }
 
+/* ---- Status Banners ---- */
 .status-banner {
   display: flex;
   align-items: center;
+  gap: var(--spacing-md);
+  padding: var(--spacing-md) var(--spacing-lg);
+  border-radius: var(--radius-lg);
+  border: 1.5px solid;
+}
+
+.status-banner--danger {
+  background: color-mix(in srgb, var(--color-danger) 8%, transparent);
+  border-color: color-mix(in srgb, var(--color-danger) 30%, transparent);
+}
+
+.status-banner--warning {
+  background: color-mix(in srgb, var(--color-warning) 8%, transparent);
+  border-color: color-mix(in srgb, var(--color-warning) 30%, transparent);
+}
+
+.status-banner--info {
+  background: color-mix(in srgb, var(--color-info) 8%, transparent);
+  border-color: color-mix(in srgb, var(--color-info) 30%, transparent);
+}
+
+.status-banner__icon-wrap {
+  width: 3rem;
+  height: 3rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
   justify-content: center;
-  gap: 0.75rem;
-  padding: 1.5rem;
-  border-radius: 12px;
-  border: 2px solid;
+  font-size: 1.375rem;
+  flex-shrink: 0;
 }
 
-.banner-icon {
-  font-size: 2rem;
+.status-banner__icon-wrap--danger {
+  background: color-mix(in srgb, var(--color-danger) 15%, transparent);
+  color: var(--color-danger);
 }
 
-.banner-text {
-  font-size: 1.25rem;
-  font-weight: 600;
+.status-banner__icon-wrap--warning {
+  background: color-mix(in srgb, var(--color-warning) 15%, transparent);
+  color: var(--color-warning);
 }
 
-.cancelled-banner {
-  background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
-  border-color: #ef4444;
+.status-banner__icon-wrap--info {
+  background: color-mix(in srgb, var(--color-info) 15%, transparent);
+  color: var(--color-info);
 }
 
-.cancelled-banner .banner-text {
-  color: #dc2626;
+.status-banner__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
 }
 
-.paused-banner {
-  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
-  border-color: #f59e0b;
+.status-banner__title {
+  font-size: 1.0625rem;
+  font-weight: 700;
+  line-height: 1.2;
 }
 
-.paused-banner .banner-text {
-  color: #d97706;
+.status-banner__subtitle {
+  font-size: 0.8125rem;
+  line-height: 1.4;
 }
 
-.modification-banner {
-  background: linear-gradient(135deg, #ffedd5 0%, #fed7aa 100%);
-  border-color: #f97316;
-}
-
-.modification-banner .banner-text {
-  color: #ea580c;
-}
-
+/* ---- Timeline ---- */
 .timeline {
   display: flex;
   flex-direction: column;
-  gap: 0;
+  padding: 0;
+  margin: 0;
 }
 
 .timeline-item {
   display: flex;
   align-items: flex-start;
-  gap: 1rem;
+  gap: var(--spacing-md);
 }
 
-.timeline-marker {
+.timeline-item__track {
   display: flex;
   flex-direction: column;
   align-items: center;
+  flex-shrink: 0;
 }
 
-.marker-circle {
-  width: 48px;
-  height: 48px;
+.timeline-item__marker {
+  width: 2.75rem;
+  height: 2.75rem;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.25rem;
-  transition: all 0.3s ease;
-  flex-shrink: 0;
+  font-size: 1.125rem;
+  transition: all var(--transition-normal);
+  position: relative;
+  z-index: 1;
 }
 
-.marker-line {
-  width: 3px;
-  height: 40px;
-  transition: background-color 0.3s ease;
+.timeline-item__line {
+  width: 2px;
+  flex: 1;
+  min-height: 2.25rem;
+  transition: background var(--transition-normal);
 }
 
-/* Completed state */
-.is-completed .marker-circle {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-  color: white;
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+/* Completed */
+.timeline-item--completed .timeline-item__marker {
+  background: var(--gradient-success);
+  color: var(--color-text-white);
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--color-success) 40%, transparent);
 }
 
-.is-completed .marker-line {
-  background: linear-gradient(180deg, #10b981 0%, #10b981 100%);
+.timeline-item--completed .timeline-item__line {
+  background: var(--color-success);
 }
 
-.is-completed .check-icon {
-  font-weight: bold;
-}
-
-/* Current state */
-.is-current .marker-circle {
-  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-  color: white;
-  box-shadow: 0 4px 16px rgba(245, 158, 11, 0.5);
-  animation: pulse 2s infinite;
-}
-
-.is-current .marker-line {
-  background: linear-gradient(180deg, #f59e0b 0%, #e5e7eb 100%);
-}
-
-/* Pending state */
-.is-pending .marker-circle {
-  background: #f3f4f6;
-  color: #9ca3af;
-  border: 2px solid #e5e7eb;
-}
-
-.is-pending .marker-line {
-  background: #e5e7eb;
-}
-
-.timeline-content {
-  padding-top: 0.75rem;
-  padding-bottom: 1.5rem;
-}
-
-.status-label {
-  font-size: 1rem;
-  font-weight: 500;
-  color: #374151;
-}
-
-.is-completed .status-label {
-  color: #10b981;
-}
-
-.is-current .status-label {
-  color: #f59e0b;
+.timeline-item--completed .timeline-item__label {
+  color: var(--color-success-dark);
   font-weight: 600;
 }
 
-.is-pending .status-label {
-  color: #9ca3af;
+/* Current */
+.timeline-item--current .timeline-item__marker {
+  background: var(--gradient-warning);
+  color: var(--color-text-white);
+  box-shadow: 0 4px 18px color-mix(in srgb, var(--color-warning) 45%, transparent);
+  animation: pulse-marker 2.2s ease-in-out infinite;
 }
 
-@keyframes pulse {
-  0%, 100% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.05);
-  }
+.timeline-item--current .timeline-item__line {
+  background: linear-gradient(to bottom, var(--color-warning), var(--vt-c-gray-200));
 }
 
-/* Last item - no line */
-.timeline-item:last-child .marker-line {
+.timeline-item--current .timeline-item__label {
+  color: var(--color-warning-dark);
+  font-weight: 700;
+}
+
+/* Pending */
+.timeline-item--pending .timeline-item__marker {
+  background: var(--vt-c-gray-100);
+  color: var(--vt-c-gray-400);
+  border: 2px solid var(--border-light);
+}
+
+.timeline-item--pending .timeline-item__line {
+  background: var(--border-light);
+}
+
+.timeline-item--pending .timeline-item__label {
+  color: var(--vt-c-gray-400);
+}
+
+/* Content */
+.timeline-item__content {
+  padding-top: 0.6rem;
+  padding-bottom: var(--spacing-lg);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  flex-wrap: wrap;
+}
+
+.timeline-item__label {
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  transition: color var(--transition-fast);
+}
+
+.timeline-item__current-chip {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  background: var(--gradient-warning);
+  color: var(--color-text-white);
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+}
+
+/* No trailing line on last item */
+.timeline-item:last-child .timeline-item__line {
   display: none;
+}
+
+@keyframes pulse-marker {
+  0%, 100% { transform: scale(1); box-shadow: 0 4px 18px color-mix(in srgb, var(--color-warning) 40%, transparent); }
+  50% { transform: scale(1.07); box-shadow: 0 6px 24px color-mix(in srgb, var(--color-warning) 55%, transparent); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .timeline-item--current .timeline-item__marker {
+    animation: none;
+  }
 }
 </style>

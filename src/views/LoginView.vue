@@ -134,8 +134,8 @@
 </script>
 
 <template>
-  <div class="login-container">
-    <div class="login-background">
+  <div class="login-container gradient-background">
+    <div class="login-background" aria-hidden="true">
       <div class="login-shapes">
         <div class="shape shape-1"></div>
         <div class="shape shape-2"></div>
@@ -156,9 +156,12 @@
 
       <div class="login-card">
         <div class="form-header">
-          <div class="form-icon">
-            <i v-if="currentView === 'login'" class="pi pi-lock"></i>
-            <i v-else class="pi pi-user-plus"></i>
+          <div class="form-icon gradient-primary">
+            <i
+              v-if="currentView === 'login'"
+              class="pi pi-lock text-white"
+            ></i>
+            <i v-else class="pi pi-user-plus text-white"></i>
           </div>
           <h2 class="form-title">
             {{ currentView === "login" ? "Iniciar Sesion" : "Crear Cuenta" }}
@@ -182,7 +185,7 @@
               :class="{ 'input-error': emailError }"
               required
             />
-            <small v-if="emailError" class="error-text">{{ emailError }}</small>
+            <small v-if="emailError" class="error-text text-danger">{{ emailError }}</small>
           </div>
 
           <div class="form-group">
@@ -196,7 +199,7 @@
               :class="{ 'input-error': passwordError }"
               required
             />
-            <small v-if="passwordError" class="error-text">{{
+            <small v-if="passwordError" class="error-text text-danger">{{
               passwordError
             }}</small>
           </div>
@@ -207,7 +210,7 @@
 
           <button
             type="submit"
-            class="submit-button"
+            class="submit-button btn-primary"
             :disabled="loading || !isLoginValid"
           >
             <span v-if="loading">Iniciando sesion...</span>
@@ -252,7 +255,7 @@
               :class="{ 'input-error': emailError }"
               required
             />
-            <small v-if="emailError" class="error-text">{{ emailError }}</small>
+            <small v-if="emailError" class="error-text text-danger">{{ emailError }}</small>
           </div>
 
           <div class="form-group">
@@ -266,7 +269,7 @@
               :class="{ 'input-error': passwordError }"
               required
             />
-            <small v-if="passwordError" class="error-text">{{
+            <small v-if="passwordError" class="error-text text-danger">{{
               passwordError
             }}</small>
           </div>
@@ -282,7 +285,7 @@
               :class="{ 'input-error': confirmPasswordError }"
               required
             />
-            <small v-if="confirmPasswordError" class="error-text">{{
+            <small v-if="confirmPasswordError" class="error-text text-danger">{{
               confirmPasswordError
             }}</small>
           </div>
@@ -293,7 +296,7 @@
 
           <button
             type="submit"
-            class="submit-button"
+            class="submit-button btn-primary"
             :disabled="loading || !isRegisterValid"
           >
             <span v-if="loading">Registrando...</span>
@@ -303,7 +306,7 @@
 
         <!-- Divider -->
         <div class="divider">
-          <span class="divider-text">o continua con</span>
+          <span class="divider-text text-gray-500">o continua con</span>
         </div>
 
         <!-- Google Button -->
@@ -312,13 +315,13 @@
         </div>
 
         <div class="form-footer">
-          <p class="toggle-text">
+          <p class="toggle-text text-gray-500">
             {{
               currentView === "login"
                 ? "No tienes una cuenta?"
                 : "Ya tienes una cuenta?"
             }}
-            <button type="button" class="toggle-button" @click="toggleView">
+            <button type="button" class="toggle-button text-primary" @click="toggleView">
               {{ currentView === "login" ? "Crear cuenta" : "Iniciar sesion" }}
             </button>
           </p>
@@ -326,10 +329,10 @@
       </div>
 
       <!-- Loading Overlay -->
-      <div v-if="loading" class="loading-overlay">
+      <div v-if="loading" class="loading-overlay" role="status" aria-live="polite">
         <div class="loading-content">
           <div class="spinner"></div>
-          <p class="loading-text">
+          <p class="loading-text text-gray-600">
             {{
               currentView === "login" ? "Iniciando sesion..." : "Registrando..."
             }}
@@ -341,6 +344,7 @@
 </template>
 
 <style scoped>
+  /* Layout */
   .login-container {
     min-height: 100vh;
     width: 100%;
@@ -349,16 +353,12 @@
     justify-content: center;
     position: relative;
     overflow: hidden;
-    background: var(--gradient-background);
   }
 
-  /* Animated Background */
+  /* Animated Background Shapes */
   .login-background {
     position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
+    inset: 0;
     overflow: hidden;
   }
 
@@ -371,8 +371,8 @@
   .shape {
     position: absolute;
     background: var(--bg-transparent);
-    animation: float 6s ease-in-out infinite;
     border-radius: 50%;
+    animation: float 6s ease-in-out infinite;
   }
 
   .shape-1 {
@@ -392,13 +392,8 @@
   }
 
   @keyframes float {
-    0%,
-    100% {
-      transform: translateY(0px) rotate(0deg);
-    }
-    50% {
-      transform: translateY(-20px) rotate(10deg);
-    }
+    0%, 100% { transform: translateY(0px) rotate(0deg); }
+    50%       { transform: translateY(-20px) rotate(10deg); }
   }
 
   /* Main Content */
@@ -407,26 +402,26 @@
     z-index: 10;
     width: 100%;
     max-width: 420px;
-    padding: 2rem;
+    padding: var(--spacing-xl);
   }
 
   /* Header */
   .login-header {
     text-align: center;
-    margin-bottom: 2rem;
+    margin-bottom: var(--spacing-xl);
   }
 
   .logo-container {
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-bottom: 0.5rem;
+    margin-bottom: var(--spacing-xs);
   }
 
   .logo-img {
     height: 80px;
     width: auto;
-    filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.2));
+    filter: drop-shadow(0 4px 12px var(--shadow-heavy));
   }
 
   .login-subtitle {
@@ -437,7 +432,7 @@
 
   /* Card */
   .login-card {
-    background: rgba(255, 255, 255, 0.95);
+    background: var(--surface-card);
     backdrop-filter: blur(10px);
     border-radius: var(--radius-xl);
     padding: var(--spacing-xl);
@@ -446,36 +441,26 @@
   }
 
   @keyframes slideUp {
-    from {
-      opacity: 0;
-      transform: translateY(20px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
+    from { opacity: 0; transform: translateY(20px); }
+    to   { opacity: 1; transform: translateY(0); }
   }
 
   /* Form Header */
   .form-header {
     text-align: center;
-    margin-bottom: 1.5rem;
+    margin-bottom: var(--spacing-lg);
   }
 
   .form-icon {
     width: 3rem;
     height: 3rem;
-    background: var(--gradient-primary);
     border-radius: var(--radius-md);
-    margin: 0 auto 0.75rem;
+    margin: 0 auto var(--spacing-sm);
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: var(--shadow-primary);
-  }
-
-  .form-icon span {
     font-size: 1.25rem;
+    box-shadow: 0 8px 32px var(--shadow-medium);
   }
 
   .form-title {
@@ -489,13 +474,7 @@
   .auth-form {
     display: flex;
     flex-direction: column;
-    gap: 1rem;
-  }
-
-  .form-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1rem;
+    gap: var(--spacing-md);
   }
 
   .form-group {
@@ -519,19 +498,18 @@
       border-color var(--transition-fast),
       box-shadow var(--transition-fast);
     outline: none;
-    background: var(--bg-white) !important;
-    color: var(--color-text-primary) !important;
+    background: var(--bg-white);
+    color: var(--color-text-primary);
+    width: 100%;
   }
 
   .form-input::placeholder {
-    color: var(--color-text-placeholder) !important;
+    color: var(--color-text-placeholder);
   }
 
   .form-input:focus {
-    border-color: var(--color-primary);
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
-    background: var(--bg-white) !important;
-    color: var(--color-text-primary) !important;
+    border-color: var(--border-focus);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 15%, transparent);
   }
 
   .form-input.input-error {
@@ -539,7 +517,6 @@
   }
 
   .error-text {
-    color: var(--color-danger);
     font-size: 0.75rem;
   }
 
@@ -548,74 +525,31 @@
     font-size: 0.875rem;
     text-align: center;
     padding: var(--spacing-sm);
-    background: rgba(239, 68, 68, 0.1);
+    background: color-mix(in srgb, var(--color-danger) 10%, transparent);
     border-radius: var(--radius-md);
     border: 1px solid var(--color-danger-light);
   }
 
+  /* Submit — overrides btn-primary sizing for full width */
   .submit-button {
-    background: var(--gradient-primary);
-    color: var(--color-text-white);
-    border: none;
+    width: 100%;
     padding: var(--spacing-sm) var(--spacing-md);
     border-radius: var(--radius-md);
-    font-weight: var(--font-semibold);
-    font-size: 1rem;
-    cursor: pointer;
-    transition:
-      transform var(--transition-fast),
-      box-shadow var(--transition-fast),
-      opacity var(--transition-fast);
     margin-top: var(--spacing-xs);
-  }
-
-  .submit-button:hover:not(:disabled) {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-primary);
-  }
-
-  .submit-button:active:not(:disabled) {
-    transform: translateY(0);
   }
 
   .submit-button:disabled {
     opacity: 0.6;
     cursor: not-allowed;
-  }
-
-  /* Form Footer */
-  .form-footer {
-    text-align: center;
-    margin-top: var(--spacing-lg);
-    padding-top: var(--spacing-lg);
-    border-top: 1px solid var(--vt-c-gray-200);
-  }
-
-  .toggle-text {
-    color: var(--vt-c-gray-500);
-    font-size: 0.875rem;
-    margin: 0;
-  }
-
-  .toggle-button {
-    background: none;
-    border: none;
-    color: var(--color-primary);
-    font-weight: var(--font-semibold);
-    cursor: pointer;
-    padding: 0;
-    margin-left: var(--spacing-xs);
-  }
-
-  .toggle-button:hover {
-    text-decoration: underline;
+    transform: none;
+    box-shadow: none;
   }
 
   /* Divider */
   .divider {
     position: relative;
     text-align: center;
-    margin: 1.5rem 0;
+    margin: var(--spacing-lg) 0;
   }
 
   .divider::before {
@@ -625,13 +559,12 @@
     left: 0;
     right: 0;
     height: 1px;
-    background: var(--vt-c-gray-200);
+    background: var(--border-light);
   }
 
   .divider-text {
-    background: rgba(255, 255, 255, 0.95);
+    background: var(--surface-card);
     padding: 0 var(--spacing-md);
-    color: var(--vt-c-gray-500);
     font-size: 0.875rem;
     position: relative;
     z-index: 1;
@@ -639,17 +572,41 @@
 
   /* Social Login */
   .social-login {
-    margin-bottom: 1rem;
+    margin-bottom: var(--spacing-md);
+  }
+
+  /* Form Footer */
+  .form-footer {
+    text-align: center;
+    margin-top: var(--spacing-lg);
+    padding-top: var(--spacing-lg);
+    border-top: 1px solid var(--border-light);
+  }
+
+  .toggle-text {
+    font-size: 0.875rem;
+    margin: 0;
+  }
+
+  .toggle-button {
+    background: none;
+    border: none;
+    font-weight: var(--font-semibold);
+    cursor: pointer;
+    padding: 0;
+    margin-left: var(--spacing-xs);
+    font-size: inherit;
+  }
+
+  .toggle-button:hover {
+    text-decoration: underline;
   }
 
   /* Loading Overlay */
   .loading-overlay {
     position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.5);
+    inset: 0;
+    background: var(--shadow-medium);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -658,7 +615,7 @@
   }
 
   .loading-content {
-    background: var(--bg-white);
+    background: var(--surface-card);
     padding: var(--spacing-xl);
     border-radius: var(--radius-xl);
     text-align: center;
@@ -672,20 +629,17 @@
   .spinner {
     width: 40px;
     height: 40px;
-    border: 4px solid var(--vt-c-gray-200);
+    border: 4px solid var(--border-light);
     border-top-color: var(--color-primary);
     border-radius: 50%;
     animation: spin 1s linear infinite;
   }
 
   @keyframes spin {
-    to {
-      transform: rotate(360deg);
-    }
+    to { transform: rotate(360deg); }
   }
 
   .loading-text {
-    color: var(--color-text-secondary);
     font-weight: var(--font-medium);
     margin: 0;
   }
@@ -693,19 +647,11 @@
   /* Responsive */
   @media (max-width: 480px) {
     .login-content {
-      padding: 1rem;
+      padding: var(--spacing-md);
     }
 
     .login-card {
-      padding: 1.5rem;
-    }
-
-    .form-row {
-      grid-template-columns: 1fr;
-    }
-
-    .logo-text {
-      font-size: 1.5rem;
+      padding: var(--spacing-lg);
     }
   }
 </style>

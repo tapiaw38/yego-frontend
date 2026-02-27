@@ -62,10 +62,17 @@ const loginWithGoogle = () => {
   <button
     type="button"
     class="google-button"
-    @click="loginWithGoogle"
     :disabled="isLoading || !googleClient"
+    :aria-busy="isLoading"
+    @click="loginWithGoogle"
   >
-    <svg class="google-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    <svg
+      class="google-icon"
+      viewBox="0 0 24 24"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+      focusable="false"
+    >
       <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
       <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
       <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
@@ -80,22 +87,30 @@ const loginWithGoogle = () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.75rem;
+  gap: var(--spacing-sm);
   width: 100%;
-  padding: 0.75rem 1rem;
-  background: white;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--bg-white);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
   font-size: 1rem;
   font-weight: 500;
-  color: #374151;
+  color: var(--color-text-secondary);
   cursor: pointer;
-  transition: background-color 0.2s, box-shadow 0.2s;
+  transition: background var(--transition-fast), box-shadow var(--transition-fast), border-color var(--transition-fast);
+  font-family: inherit;
 }
 
 .google-button:hover:not(:disabled) {
-  background: #f9fafb;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  background: var(--surface-hover);
+  border-color: var(--border-default);
+  box-shadow: 0 2px 8px var(--shadow-light);
+}
+
+.google-button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--border-focus) 25%, transparent);
+  border-color: var(--border-focus);
 }
 
 .google-button:disabled {
@@ -106,5 +121,6 @@ const loginWithGoogle = () => {
 .google-icon {
   width: 20px;
   height: 20px;
+  flex-shrink: 0;
 }
 </style>
