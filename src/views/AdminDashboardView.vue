@@ -624,6 +624,12 @@
       >
         Transacciones ({{ transactions.length }})
       </button>
+      <button
+        class="tab"
+        @click="router.push('/admin/imports')"
+      >
+        Importaciones
+      </button>
     </nav>
 
     <main class="dashboard-content">

@@ -81,6 +81,12 @@ const router = createRouter({
       meta: { requiresAuth: true, requiresAdmin: true }
     },
     {
+      path: '/admin/imports',
+      name: 'admin-imports',
+      component: () => import('../views/AdminImportsView.vue'),
+      meta: { requiresAuth: true, requiresAdmin: true }
+    },
+    {
       path: '/payment-methods',
       name: 'payment-methods',
       component: PaymentMethodsView,
