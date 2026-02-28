@@ -708,9 +708,17 @@ onMounted(async () => {
 }
 
 .form-row {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  display: flex;
   gap: var(--spacing-sm);
+}
+
+.form-row .form-field {
+  flex: 0 0 auto;
+  width: 80px;
+}
+
+.form-row .form-field:last-child {
+  width: 90px;
 }
 
 .form-check {
@@ -764,8 +772,5 @@ onMounted(async () => {
     justify-content: flex-end;
   }
 
-  .form-row {
-    grid-template-columns: 1fr 1fr 1fr;
-  }
 }
 </style>

@@ -141,7 +141,8 @@
         >
           <div class="order-header">
             <span :class="['status-badge', getStatusClass(order.status)]">
-              {{ StatusIcons[order.status] }} {{ StatusLabels[order.status] }}
+              <i :class="['pi', StatusIcons[order.status]]"></i>
+              {{ StatusLabels[order.status] }}
             </span>
             <span class="order-date text-gray-500">{{ formatDate(order.created_at) }}</span>
           </div>

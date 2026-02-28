@@ -122,6 +122,18 @@
     }
   }
 
+  const searchQuery = ref("");
+
+  const filteredRecords = computed(() => {
+    const q = searchQuery.value.trim().toLowerCase();
+    if (!q) return records.value;
+    return records.value.filter((r) =>
+      Object.values(r.data ?? {}).some((v) =>
+        String(v ?? "").toLowerCase().includes(q)
+      )
+    );
+  });
+
   const visibleDataKeys = computed(() => {
     if (records.value.length === 0) return [];
     const firstRecord = records.value[0];
@@ -202,14 +214,25 @@
     <!-- Records Table -->
     <section class="records-section">
       <div class="records-header">
-        <h2>Registros ({{ records.length }})</h2>
-        <div v-if="records.length > 0" class="records-actions">
-          <button class="btn btn-export btn-sm" @click="exportToExcel">
-            Exportar Excel
-          </button>
-          <button class="btn btn-danger btn-sm" @click="showClearModal = true">
-            Limpiar todo
-          </button>
+        <h2>
+          Registros ({{ filteredRecords.length }}<span v-if="searchQuery" class="records-total"> de {{ records.length }}</span>)
+        </h2>
+        <div class="records-toolbar">
+          <input
+            v-if="records.length > 0"
+            v-model="searchQuery"
+            type="search"
+            class="search-input"
+            placeholder="Buscar en productos…"
+          />
+          <div v-if="records.length > 0" class="records-actions">
+            <button class="btn btn-export btn-sm" @click="exportToExcel">
+              Exportar Excel
+            </button>
+            <button class="btn btn-danger btn-sm" @click="showClearModal = true">
+              Limpiar todo
+            </button>
+          </div>
         </div>
       </div>
 
@@ -220,6 +243,10 @@
 
       <div v-else-if="records.length === 0" class="empty-state">
         <p>No hay registros importados todavía.</p>
+      </div>
+
+      <div v-else-if="filteredRecords.length === 0" class="empty-state">
+        <p>No se encontraron resultados para "<strong>{{ searchQuery }}</strong>".</p>
       </div>
 
       <div v-else class="table-container">
@@ -233,7 +260,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="record in records" :key="record.id">
+            <tr v-for="record in filteredRecords" :key="record.id">
               <td class="mono">{{ truncate(record.id, 8) }}</td>
               <td v-for="key in visibleDataKeys" :key="key">
                 {{ String(record.data?.[key] ?? "") }}
@@ -380,6 +407,34 @@
 
   .records-header h2 {
     margin: 0;
+  }
+
+  .records-total {
+    font-weight: 400;
+    color: var(--color-text-muted);
+    font-size: 0.9em;
+  }
+
+  .records-toolbar {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    flex-wrap: wrap;
+  }
+
+  .search-input {
+    padding: 0.35rem 0.75rem;
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    font-size: 0.875rem;
+    width: 220px;
+    transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  }
+
+  .search-input:focus {
+    outline: none;
+    border-color: var(--border-focus);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary) 15%, transparent);
   }
 
   .records-actions {
