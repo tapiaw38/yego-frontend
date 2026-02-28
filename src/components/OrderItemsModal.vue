@@ -3,6 +3,8 @@ import { ref, computed, watch } from 'vue'
 import type { OrderData, OrderItem } from '../types/order'
 import { calculateOrderTotal, formatPrice } from '../types/order'
 import { orderService } from '../api/orderService'
+import { importsService } from '../api/importsService'
+import type { ImportRecord } from '../types/import'
 
 const props = defineProps<{
   data: OrderData
@@ -10,6 +12,7 @@ const props = defineProps<{
   isAdmin?: boolean
   canRequestModification?: boolean
   orderId?: string
+  editMode?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -20,10 +23,13 @@ const emit = defineEmits<{
 
 const isEditing = ref(false)
 const isRequestingModification = ref(false)
+const isAddingItems = ref(false)
 const saving = ref(false)
 const submittingRequest = ref(false)
 const editableItems = ref<OrderItem[]>([])
 const modificationMessage = ref('')
+const newItems = ref<OrderItem[]>([])
+const localExistingItems = ref<OrderItem[]>([])
 
 // Initialize editable items when modal opens
 watch(() => props.show, (newShow) => {
@@ -32,8 +38,123 @@ watch(() => props.show, (newShow) => {
     isEditing.value = false
     isRequestingModification.value = false
     modificationMessage.value = ''
+    newItems.value = []
+    localExistingItems.value = []
+    if (props.editMode && props.canRequestModification) {
+      startAddingItems()
+    } else {
+      isAddingItems.value = false
+    }
   }
 })
+
+// ── Autocomplete desde imports (solo para dueño de orden) ────────────────
+const importProducts = ref<ImportRecord[]>([])
+const productsLoaded = ref(false)
+
+async function ensureProductsLoaded() {
+  if (productsLoaded.value) return
+  try {
+    const res = await importsService.getAll()
+    importProducts.value = res.records ?? []
+    productsLoaded.value = true
+  } catch { /* funciona manual si falla */ }
+}
+
+function normalize(str: string): string {
+  return str.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+}
+
+function findImportValue(data: Record<string, unknown>, patterns: string[]): string | undefined {
+  const key = Object.keys(data).find(k =>
+    patterns.some(p => normalize(k).includes(normalize(p)))
+  )
+  return key ? String(data[key] ?? '') : undefined
+}
+
+function getProductName(data: Record<string, unknown>): string {
+  return (
+    findImportValue(data, ['descripcion', 'nombre', 'name', 'producto', 'description']) ??
+    String(Object.values(data)[0] ?? '')
+  )
+}
+
+function getProductPrice(data: Record<string, unknown>): number | undefined {
+  const raw = findImportValue(data, ['precio', 'price', 'costo', 'valor', 'importe'])
+  if (raw === undefined) return undefined
+  const n = parseFloat(raw.replace(',', '.'))
+  return isNaN(n) ? undefined : Math.round(n)
+}
+
+function getProductWeight(data: Record<string, unknown>): number | undefined {
+  const raw = findImportValue(data, ['peso', 'weight', 'gramo', 'gram'])
+  if (raw === undefined) return undefined
+  const n = parseFloat(raw.replace(',', '.'))
+  return isNaN(n) ? undefined : n
+}
+
+function onNewItemNameInput(index: number) {
+  const name = (newItems.value[index]?.name ?? '').trim()
+  if (!name) return
+  const matched = importProducts.value.find(
+    r => normalize(getProductName(r.data)) === normalize(name)
+  )
+  if (!matched) return
+  const item = newItems.value[index]
+  if (!item) return
+  const price = getProductPrice(matched.data)
+  if (price !== undefined) item.price = price
+  const weight = getProductWeight(matched.data)
+  if (weight !== undefined) item.weight = weight
+}
+// ─────────────────────────────────────────────────────────────────────────
+
+const startAddingItems = () => {
+  localExistingItems.value = props.data.items.map(item => ({ ...item }))
+  newItems.value = []
+  isAddingItems.value = true
+  ensureProductsLoaded()
+}
+
+const cancelAddingItems = () => {
+  isAddingItems.value = false
+  newItems.value = []
+  localExistingItems.value = []
+}
+
+const removeExistingItem = (index: number) => {
+  localExistingItems.value.splice(index, 1)
+}
+
+const addNewItem = () => {
+  newItems.value.push({ name: '', price: 0, quantity: 1, weight: undefined })
+}
+
+const removeNewItem = (index: number) => {
+  newItems.value.splice(index, 1)
+}
+
+const saveNewItems = async () => {
+  if (!props.orderId || saving.value) return
+  const valid = newItems.value.filter(item => item.name.trim() !== '' && item.quantity > 0)
+  const merged: OrderData = { items: [...localExistingItems.value, ...valid] }
+  if (merged.items.length === 0) {
+    alert('El pedido debe tener al menos un producto')
+    return
+  }
+  saving.value = true
+  try {
+    await orderService.updateOrder(props.orderId, { data: merged })
+    emit('updated', merged)
+    isAddingItems.value = false
+    newItems.value = []
+  } catch (err) {
+    console.error('Error guardando items:', err)
+    alert('Error al guardar los cambios')
+  } finally {
+    saving.value = false
+  }
+}
 
 const total = computed(() => {
   if (isEditing.value) {
@@ -92,11 +213,6 @@ const saveChanges = async () => {
   }
 }
 
-const startRequestingModification = () => {
-  modificationMessage.value = ''
-  isRequestingModification.value = true
-}
-
 const cancelRequestingModification = () => {
   isRequestingModification.value = false
   modificationMessage.value = ''
@@ -130,7 +246,10 @@ const submitModificationRequest = async () => {
 const handleClose = () => {
   isEditing.value = false
   isRequestingModification.value = false
+  isAddingItems.value = false
   modificationMessage.value = ''
+  newItems.value = []
+  localExistingItems.value = []
   emit('close')
 }
 </script>
@@ -145,10 +264,10 @@ const handleClose = () => {
           <div class="modal-header__title-group">
             <i
               class="modal-header__icon pi"
-              :class="isEditing ? 'pi-pencil text-success' : isRequestingModification ? 'pi-comment text-warning' : 'pi-list text-primary'"
+              :class="isEditing ? 'pi-pencil text-success' : isRequestingModification ? 'pi-comment text-warning' : isAddingItems ? 'pi-plus-circle text-primary' : 'pi-list text-primary'"
             ></i>
             <h2 class="modal-header__title">
-              {{ isEditing ? 'Editar pedido' : isRequestingModification ? 'Solicitar modificación' : 'Detalle del pedido' }}
+              {{ isEditing ? 'Editar pedido' : isRequestingModification ? 'Solicitar modificación' : isAddingItems ? 'Agregar productos' : 'Detalle del pedido' }}
             </h2>
           </div>
           <button class="modal-header__close" @click="handleClose" aria-label="Cerrar">
@@ -192,6 +311,71 @@ const handleClose = () => {
               <i class="pi pi-info-circle info-banner__icon text-info"></i>
               <p class="info-banner__text">Tu pedido quedará en estado "Modificación Solicitada" hasta que el administrador procese tu solicitud.</p>
             </div>
+          </div>
+
+          <!-- Owner: Agregar / Borrar productos -->
+          <div v-else-if="isAddingItems" class="items-list">
+            <!-- Productos existentes (con botón borrar) -->
+            <div
+              v-for="(item, index) in localExistingItems"
+              :key="'existing-' + index"
+              class="item-edit-card"
+            >
+              <div class="item-edit-card__fields">
+                <div class="item-row__info">
+                  <span class="item-row__name text-gray-800">{{ item.name }}</span>
+                  <span class="item-row__qty text-gray-400">x{{ item.quantity }}</span>
+                </div>
+                <div v-if="item.price > 0">
+                  <span class="item-row__subtotal text-gray-800">{{ formatPrice(item.price * item.quantity) }}</span>
+                </div>
+              </div>
+              <button class="remove-btn" @click="removeExistingItem(index)" aria-label="Eliminar">
+                <i class="pi pi-trash"></i>
+              </button>
+            </div>
+
+            <div class="owner-add-divider">
+              <span>Agregar productos</span>
+            </div>
+
+            <!-- Nuevos productos a agregar -->
+            <div v-for="(item, index) in newItems" :key="'new-' + index" class="item-edit-card">
+              <div class="item-edit-card__fields">
+                <input
+                  v-model="item.name"
+                  type="text"
+                  :list="`owner-prod-${index}`"
+                  placeholder="Buscar producto…"
+                  class="form-input"
+                  @input="onNewItemNameInput(index)"
+                />
+                <datalist :id="`owner-prod-${index}`">
+                  <option v-for="r in importProducts" :key="r.id" :value="getProductName(r.data)" />
+                </datalist>
+                <div class="item-edit-card__numbers">
+                  <div class="field-group">
+                    <label class="field-label">Precio</label>
+                    <div class="owner-price-display">{{ item.price > 0 ? formatPrice(item.price) : '—' }}</div>
+                  </div>
+                  <div class="field-group">
+                    <label class="field-label">Cant.</label>
+                    <input v-model.number="item.quantity" type="number" min="1" class="form-input" />
+                  </div>
+                  <div class="field-group" v-if="item.weight">
+                    <label class="field-label">Peso (g)</label>
+                    <div class="owner-price-display">{{ item.weight }}</div>
+                  </div>
+                </div>
+              </div>
+              <button class="remove-btn" @click="removeNewItem(index)" aria-label="Eliminar">
+                <i class="pi pi-trash"></i>
+              </button>
+            </div>
+
+            <button class="add-item-btn" @click="addNewItem">
+              <i class="pi pi-plus"></i> Agregar otro
+            </button>
           </div>
 
           <!-- View Mode -->
@@ -299,13 +483,24 @@ const handleClose = () => {
             </button>
           </template>
 
+          <!-- Owner Add Items Mode -->
+          <template v-else-if="isAddingItems">
+            <button class="modal-btn modal-btn--ghost" @click="cancelAddingItems" :disabled="saving">
+              Cancelar
+            </button>
+            <button class="modal-btn modal-btn--success" @click="saveNewItems" :disabled="saving">
+              <i class="pi pi-check"></i>
+              {{ saving ? 'Guardando...' : 'Guardar' }}
+            </button>
+          </template>
+
           <!-- View Mode -->
           <template v-else>
             <button v-if="isAdmin && orderId" class="modal-btn modal-btn--success" @click="startEditing">
               <i class="pi pi-pencil"></i> Editar
             </button>
-            <button v-if="canRequestModification" class="modal-btn modal-btn--warning" @click="startRequestingModification">
-              <i class="pi pi-comment"></i> Solicitar modificación
+            <button v-if="canRequestModification && !isAdmin && orderId" class="modal-btn modal-btn--success" @click="startAddingItems">
+              <i class="pi pi-plus"></i> Agregar
             </button>
             <button class="modal-btn modal-btn--primary" @click="handleClose">
               Cerrar
@@ -772,5 +967,39 @@ const handleClose = () => {
 
 .modal-btn--ghost:hover:not(:disabled) {
   background: var(--vt-c-gray-200);
+}
+
+/* Owner add items */
+.owner-add-divider {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin: var(--spacing-xs) 0;
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.owner-add-divider::before,
+.owner-add-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border-light);
+}
+
+.owner-price-display {
+  width: 100%;
+  padding: 0.4375rem var(--spacing-xs);
+  border: 1.5px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+  background: var(--surface-hover);
+  min-height: 2.125rem;
+  display: flex;
+  align-items: center;
 }
 </style>

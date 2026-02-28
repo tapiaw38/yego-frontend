@@ -561,22 +561,32 @@
               class="btn btn--ghost btn--sm"
               @click="showItemsModal = true"
             >
-              <i class="pi pi-list"></i>
-              Ver detalle
+              <i :class="canRequestModification ? 'pi pi-pencil' : 'pi pi-list'"></i>
+              {{ canRequestModification ? 'Modificar' : 'Ver detalle' }}
             </button>
           </div>
 
           <div class="summary-rows">
-            <div class="summary-row">
+            <!-- Item breakdown -->
+            <div
+              v-for="(item, index) in order.data!.items"
+              :key="index"
+              class="summary-row summary-row--item"
+            >
               <span class="summary-row__label">
-                Productos
-                <span class="summary-row__badge">{{
-                  order.data!.items.length
-                }}</span>
+                {{ item.name }}
+                <span class="summary-row__badge">x{{ item.quantity }}</span>
               </span>
-              <span class="summary-row__value">{{
-                formatPrice(orderTotal)
-              }}</span>
+              <span v-if="item.price > 0" class="summary-row__value summary-row__value--item">
+                {{ formatPrice(item.price * item.quantity) }}
+              </span>
+              <span v-else class="summary-row__value summary-row__value--muted">Pendiente</span>
+            </div>
+
+            <!-- Subtotal -->
+            <div class="summary-row summary-row--subtotal">
+              <span class="summary-row__label">Subtotal</span>
+              <span class="summary-row__value">{{ formatPrice(orderTotal) }}</span>
             </div>
 
             <div class="summary-row">
@@ -722,6 +732,7 @@
       :show="showItemsModal"
       :is-admin="canEditItems"
       :can-request-modification="canRequestModification"
+      :edit-mode="canRequestModification"
       :order-id="order.id"
       @close="showItemsModal = false"
       @updated="handleOrderDataUpdated"
@@ -1299,6 +1310,22 @@
     display: flex;
     align-items: center;
     gap: 0.375rem;
+  }
+
+  .summary-row--item .summary-row__label {
+    font-size: 0.8125rem;
+    color: var(--color-text-secondary);
+  }
+
+  .summary-row__value--item {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--vt-c-gray-700);
+  }
+
+  .summary-row--subtotal {
+    padding-top: 0.5rem;
+    border-top: 1px dashed var(--border-light);
   }
 
   .summary-row--total {

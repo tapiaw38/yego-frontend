@@ -14,6 +14,8 @@
     StatusColors as TransactionStatusColors,
   } from "../types/transaction";
   import { AppHeader } from "@/components/ui";
+  import { importsService } from "../api/importsService";
+  import type { ImportRecord } from "../types/import";
   import { useWebSocket } from "@/composables/useWebSocket";
   import {
     websocketService,
@@ -234,6 +236,69 @@
     editableItems.value = [];
   };
 
+  // ── Autocomplete productos desde imports ─────────────────────────────────
+  const importProducts = ref<ImportRecord[]>([]);
+  const productsLoaded = ref(false);
+
+  async function ensureProductsLoaded() {
+    if (productsLoaded.value) return;
+    try {
+      const res = await importsService.getAll();
+      importProducts.value = res.records ?? [];
+      productsLoaded.value = true;
+    } catch {
+      // sin imports, el campo funciona manual
+    }
+  }
+
+  function normalize(str: string): string {
+    return str.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  }
+
+  function findImportValue(data: Record<string, unknown>, patterns: string[]): string | undefined {
+    const key = Object.keys(data).find((k) =>
+      patterns.some((p) => normalize(k).includes(normalize(p)))
+    );
+    return key ? String(data[key] ?? "") : undefined;
+  }
+
+  function getProductName(data: Record<string, unknown>): string {
+    return (
+      findImportValue(data, ["descripcion", "nombre", "name", "producto", "description"]) ??
+      String(Object.values(data)[0] ?? "")
+    );
+  }
+
+  function getProductPrice(data: Record<string, unknown>): number | undefined {
+    const raw = findImportValue(data, ["precio", "price", "costo", "valor", "importe"]);
+    if (raw === undefined) return undefined;
+    const n = parseFloat(raw.replace(",", "."));
+    return isNaN(n) ? undefined : Math.round(n);
+  }
+
+  function getProductWeight(data: Record<string, unknown>): number | undefined {
+    const raw = findImportValue(data, ["peso", "weight", "gramo", "gram"]);
+    if (raw === undefined) return undefined;
+    const n = parseFloat(raw.replace(",", "."));
+    return isNaN(n) ? undefined : n;
+  }
+
+  function onNameInput(index: number) {
+    const name = (editableItems.value[index]?.name ?? "").trim();
+    if (!name) return;
+    const matched = importProducts.value.find(
+      (r) => normalize(getProductName(r.data)) === normalize(name)
+    );
+    if (!matched) return;
+    const item = editableItems.value[index];
+    if (!item) return;
+    const price = getProductPrice(matched.data);
+    if (price !== undefined) item.price = price;
+    const weight = getProductWeight(matched.data);
+    if (weight !== undefined) item.weight = weight;
+  }
+  // ─────────────────────────────────────────────────────────────────────────
+
   const startEditingItems = () => {
     if (viewingOrder.value?.data?.items) {
       editableItems.value = viewingOrder.value.data.items.map((item) => ({
@@ -243,6 +308,7 @@
       editableItems.value = [];
     }
     isEditingItems.value = true;
+    ensureProductsLoaded();
   };
 
   const cancelEditingItems = () => {
@@ -1252,9 +1318,18 @@
                   <input
                     v-model="item.name"
                     type="text"
+                    :list="`prod-list-${index}`"
                     placeholder="Nombre del producto"
                     class="item-input"
+                    @input="onNameInput(index)"
                   />
+                  <datalist :id="`prod-list-${index}`">
+                    <option
+                      v-for="r in importProducts"
+                      :key="r.id"
+                      :value="getProductName(r.data)"
+                    />
+                  </datalist>
                   <div class="item-number-fields">
                     <div class="field-group">
                       <label>Precio</label>
@@ -1332,6 +1407,7 @@
     <!-- Toast notifications -->
     <Toast position="top-right" />
   </div>
+
 </template>
 
 <style scoped>
@@ -2303,4 +2379,5 @@
       flex-wrap: wrap;
     }
   }
+
 </style>
