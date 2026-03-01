@@ -28,6 +28,12 @@ authClient.interceptors.response.use(
   (response) => response,
   (error) => {
     console.error('Auth API Error:', error.response?.data || error.message)
+    if (error.response?.status === 401) {
+      localStorage.removeItem('token')
+      if (!window.location.pathname.startsWith('/login')) {
+        window.location.href = '/login'
+      }
+    }
     return Promise.reject(error)
   }
 )
