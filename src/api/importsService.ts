@@ -16,6 +16,10 @@ export const importsService = {
     return data
   },
 
+  async create(payload: { data: Record<string, unknown>; profile_id?: string | null }): Promise<void> {
+    await apiClient.post('/api/admin/imports', payload)
+  },
+
   async update(id: string, payload: { data: Record<string, unknown>; profile_id?: string | null }): Promise<void> {
     await apiClient.put(`/api/admin/imports/${id}`, payload)
   },

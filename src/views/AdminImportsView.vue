@@ -24,6 +24,63 @@
     profile_id: "",
   });
 
+  // Create
+  const showCreateModal = ref(false);
+  const creating = ref(false);
+  const createForm = ref<{ data: Record<string, string>; profile_id: string }>({
+    data: {},
+    profile_id: "",
+  });
+  // For adding custom fields when no records exist
+  const newFieldKey = ref("");
+  const newFieldVal = ref("");
+
+  function openCreate() {
+    const template: Record<string, string> = {};
+    if (visibleDataKeys.value.length > 0) {
+      visibleDataKeys.value.forEach((k) => { template[k] = ""; });
+    }
+    createForm.value = { data: template, profile_id: "" };
+    newFieldKey.value = "";
+    newFieldVal.value = "";
+    showCreateModal.value = true;
+  }
+
+  function closeCreate() {
+    showCreateModal.value = false;
+  }
+
+  function addCustomField() {
+    const k = newFieldKey.value.trim();
+    if (!k) return;
+    createForm.value.data[k] = newFieldVal.value;
+    newFieldKey.value = "";
+    newFieldVal.value = "";
+  }
+
+  function removeCreateField(key: string) {
+    const { [key]: _, ...rest } = createForm.value.data;
+    createForm.value.data = rest;
+  }
+
+  async function saveCreate() {
+    if (Object.keys(createForm.value.data).length === 0) return;
+    creating.value = true;
+    try {
+      const profileId = createForm.value.profile_id.trim() || null;
+      await importsService.create({
+        data: createForm.value.data as Record<string, unknown>,
+        profile_id: profileId,
+      });
+      await loadRecords();
+      closeCreate();
+    } catch (err) {
+      console.error("Error creating record:", err);
+    } finally {
+      creating.value = false;
+    }
+  }
+
   async function loadRecords() {
     loading.value = true;
     try {
@@ -225,13 +282,18 @@
             class="search-input"
             placeholder="Buscar en productos…"
           />
-          <div v-if="records.length > 0" class="records-actions">
-            <button class="btn btn-export btn-sm" @click="exportToExcel">
-              Exportar Excel
+          <div class="records-actions">
+            <button class="btn btn-add btn-sm" @click="openCreate">
+              + Agregar producto
             </button>
-            <button class="btn btn-danger btn-sm" @click="showClearModal = true">
-              Limpiar todo
-            </button>
+            <template v-if="records.length > 0">
+              <button class="btn btn-export btn-sm" @click="exportToExcel">
+                Exportar Excel
+              </button>
+              <button class="btn btn-danger btn-sm" @click="showClearModal = true">
+                Limpiar todo
+              </button>
+            </template>
           </div>
         </div>
       </div>
@@ -311,6 +373,59 @@
           </button>
           <button class="btn btn-danger" :disabled="clearing" @click="clearAll">
             {{ clearing ? "Eliminando…" : "Sí, eliminar todo" }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Create Modal -->
+    <div v-if="showCreateModal" class="modal-overlay" @click.self="closeCreate">
+      <div class="modal">
+        <h3>Agregar producto</h3>
+
+        <div
+          v-for="(_, key) in createForm.data"
+          :key="String(key)"
+          class="form-group form-group--row"
+        >
+          <label>{{ key }}</label>
+          <div class="form-group__row">
+            <input
+              v-model="(createForm.data as Record<string, string>)[key as string]"
+              type="text"
+              class="form-input"
+            />
+            <button class="btn-icon btn-icon--danger" title="Quitar campo" @click="removeCreateField(String(key))">✕</button>
+          </div>
+        </div>
+
+        <!-- Add custom field row (always visible so admin can add arbitrary columns) -->
+        <div class="add-field-row">
+          <input
+            v-model="newFieldKey"
+            type="text"
+            class="form-input form-input--key"
+            placeholder="Campo"
+            @keyup.enter="addCustomField"
+          />
+          <input
+            v-model="newFieldVal"
+            type="text"
+            class="form-input"
+            placeholder="Valor"
+            @keyup.enter="addCustomField"
+          />
+          <button class="btn btn-sm btn-secondary" @click="addCustomField">+</button>
+        </div>
+
+        <div class="modal-actions">
+          <button class="btn btn-secondary" @click="closeCreate">Cancelar</button>
+          <button
+            class="btn btn-primary"
+            :disabled="creating || Object.keys(createForm.data).length === 0"
+            @click="saveCreate"
+          >
+            {{ creating ? "Guardando…" : "Guardar" }}
           </button>
         </div>
       </div>
@@ -442,6 +557,15 @@
     gap: var(--spacing-xs);
   }
 
+  .btn-add {
+    background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+    color: var(--color-primary);
+  }
+
+  .btn-add:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--color-primary) 22%, transparent);
+  }
+
   .btn-export {
     background: color-mix(in srgb, var(--color-success) 15%, transparent);
     color: var(--color-success);
@@ -449,6 +573,47 @@
 
   .btn-export:hover:not(:disabled) {
     background: color-mix(in srgb, var(--color-success) 25%, transparent);
+  }
+
+  .form-group--row .form-group__row {
+    display: flex;
+    gap: 0.4rem;
+    align-items: center;
+  }
+
+  .form-group--row .form-group__row .form-input {
+    flex: 1;
+  }
+
+  .btn-icon {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0.2rem 0.4rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.8rem;
+    line-height: 1;
+  }
+
+  .btn-icon--danger {
+    color: var(--color-danger);
+  }
+
+  .btn-icon--danger:hover {
+    background: color-mix(in srgb, var(--color-danger) 12%, transparent);
+  }
+
+  .add-field-row {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    margin-bottom: var(--spacing-md);
+    padding-top: var(--spacing-sm);
+    border-top: 1px dashed var(--border-light);
+  }
+
+  .form-input--key {
+    max-width: 140px;
   }
 
   .upload-controls {
