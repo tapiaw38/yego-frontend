@@ -83,7 +83,7 @@ function getProductPrice(data: Record<string, unknown>): number | undefined {
   const raw = findImportValue(data, ['precio', 'price', 'costo', 'valor', 'importe'])
   if (raw === undefined) return undefined
   const n = parseFloat(raw.replace(',', '.'))
-  return isNaN(n) ? undefined : Math.round(n)
+  return isNaN(n) ? undefined : Math.round(n * 100) / 100
 }
 
 function getProductWeight(data: Record<string, unknown>): number | undefined {
