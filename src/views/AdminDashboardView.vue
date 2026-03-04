@@ -544,7 +544,7 @@
       style: "currency",
       currency: "ARS",
       minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
+      maximumFractionDigits: 2,
     }).format(price);
   };
 
