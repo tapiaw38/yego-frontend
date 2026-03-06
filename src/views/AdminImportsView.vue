@@ -64,6 +64,10 @@
     profile_id: "",
   });
   const editPendingFiles = ref<Record<string, File>>({});
+  const editNewFieldKey = ref("");
+  const editNewFieldType = ref<"text" | "file">("text");
+  const editNewFieldVal = ref("");
+  const editNewFieldFile = ref<File | null>(null);
 
   // Create
   const showCreateModal = ref(false);
@@ -191,12 +195,58 @@
   function openEdit(record: ImportRecord) {
     editingRecord.value = record;
     const data: Record<string, unknown> = { ...record.data };
-    // Include any manually-added columns not yet in this record
     manualColumns.value.forEach((c) => {
       if (!(c.key in data)) data[c.key] = "";
     });
     editForm.value = { data, profile_id: record.profile_id ?? "" };
     editPendingFiles.value = {};
+    editNewFieldKey.value = "";
+    editNewFieldType.value = "text";
+    editNewFieldVal.value = "";
+    editNewFieldFile.value = null;
+  }
+
+  function onEditNewFieldFileChange(e: Event) {
+    editNewFieldFile.value = (e.target as HTMLInputElement).files?.[0] ?? null;
+  }
+
+  function addEditField() {
+    const k = editNewFieldKey.value.trim();
+    if (!k) return;
+    const type = editNewFieldType.value;
+    if (type === "file" && editNewFieldFile.value) {
+      (editForm.value.data as Record<string, unknown>)[k] = editNewFieldFile.value.name;
+      editPendingFiles.value[k] = editNewFieldFile.value;
+    } else {
+      (editForm.value.data as Record<string, unknown>)[k] = editNewFieldVal.value;
+    }
+    // Register in manualColumns if not already tracked
+    if (!manualColumns.value.some((c) => c.key === k)) {
+      manualColumns.value.push({ key: k, type });
+    }
+    editNewFieldKey.value = "";
+    editNewFieldVal.value = "";
+    editNewFieldType.value = "text";
+    editNewFieldFile.value = null;
+  }
+
+  async function clearEditFileField(key: string) {
+    const data = editForm.value.data as Record<string, unknown>;
+    const currentUrl = String(data[key] ?? "");
+    // If there's a pending file (not yet uploaded), just clear it
+    if (editPendingFiles.value[key]) {
+      const { [key]: _, ...rest } = editPendingFiles.value;
+      editPendingFiles.value = rest;
+      data[key] = "";
+      return;
+    }
+    // If there's an existing S3 URL, delete from S3
+    if (currentUrl.startsWith("https://")) {
+      uploadService.deleteByUrl(currentUrl).catch((err) =>
+        console.error("S3 delete failed:", err)
+      );
+    }
+    data[key] = "";
   }
 
   function closeEdit() {
@@ -527,14 +577,21 @@
         >
           <label>{{ key }}</label>
           <div class="form-group__row">
-            <label
-              v-if="fileTypeKeys.has(String(key))"
-              class="btn-file-pick"
-              :class="{ 'has-file': editPendingFiles[String(key)] }"
-            >
-              {{ editPendingFiles[String(key)]?.name ?? (String(editForm.data[String(key)] || 'Seleccionar imagen')) }}
-              <input type="file" accept="image/*" class="file-input" @change="onEditFileChange($event, String(key))" />
-            </label>
+            <template v-if="fileTypeKeys.has(String(key))">
+              <label
+                class="btn-file-pick"
+                :class="{ 'has-file': editPendingFiles[String(key)] || String(editForm.data[String(key)]).startsWith('https://') }"
+              >
+                {{ editPendingFiles[String(key)]?.name ?? (String(editForm.data[String(key)] || 'Seleccionar imagen')) }}
+                <input type="file" accept="image/*" class="file-input" @change="onEditFileChange($event, String(key))" />
+              </label>
+              <button
+                v-if="editPendingFiles[String(key)] || String(editForm.data[String(key)]).startsWith('https://')"
+                class="btn-icon btn-icon--warning"
+                title="Limpiar imagen"
+                @click="clearEditFileField(String(key))"
+              >🗑</button>
+            </template>
             <input
               v-else
               v-model="(editForm.data as Record<string, unknown>)[key] as string"
@@ -543,6 +600,34 @@
             />
             <button class="btn-icon btn-icon--danger" title="Quitar campo" @click="removeEditField(String(key))">✕</button>
           </div>
+        </div>
+
+        <!-- Add new column row -->
+        <div class="add-field-row">
+          <input
+            v-model="editNewFieldKey"
+            type="text"
+            class="form-input form-input--key"
+            placeholder="Campo"
+            @keyup.enter="addEditField"
+          />
+          <select v-model="editNewFieldType" class="form-select--type">
+            <option value="text">Texto</option>
+            <option value="file">Imagen</option>
+          </select>
+          <input
+            v-if="editNewFieldType === 'text'"
+            v-model="editNewFieldVal"
+            type="text"
+            class="form-input"
+            placeholder="Valor"
+            @keyup.enter="addEditField"
+          />
+          <label v-else class="btn-file-pick" :class="{ 'has-file': editNewFieldFile }">
+            {{ editNewFieldFile ? editNewFieldFile.name : 'Seleccionar' }}
+            <input type="file" accept="image/*" class="file-input" @change="onEditNewFieldFileChange" />
+          </label>
+          <button class="btn btn-sm btn-secondary" @click="addEditField">+</button>
         </div>
 
         <div class="modal-actions">
@@ -697,6 +782,15 @@
 
   .btn-icon--danger:hover {
     background: color-mix(in srgb, var(--color-danger) 12%, transparent);
+  }
+
+  .btn-icon--warning {
+    color: var(--color-warning, #e67e22);
+    font-size: 0.75rem;
+  }
+
+  .btn-icon--warning:hover {
+    background: color-mix(in srgb, var(--color-warning, #e67e22) 12%, transparent);
   }
 
   .add-field-row {
