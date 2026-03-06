@@ -696,6 +696,12 @@
       >
         Importaciones
       </button>
+      <button
+        class="tab"
+        @click="router.push('/admin/images')"
+      >
+        Imágenes
+      </button>
     </nav>
 
     <main class="dashboard-content">

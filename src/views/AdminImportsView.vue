@@ -1,8 +1,9 @@
 <script setup lang="ts">
-  import { ref, onMounted, computed } from "vue";
+  import { ref, onMounted, computed, watch } from "vue";
   import { useRouter } from "vue-router";
   import * as XLSX from "xlsx";
   import { importsService } from "../api/importsService";
+  import { uploadService } from "../api/uploadService";
   import type { ImportRecord } from "../types/import";
 
   const router = useRouter();
@@ -18,11 +19,51 @@
   const selectedFile = ref<File | null>(null);
   const importedCount = ref<number | null>(null);
 
+  // Column definitions — persisted in localStorage so they survive reload
+  const STORAGE_KEY = "imports_manual_columns";
+  const storedCols = localStorage.getItem(STORAGE_KEY);
+  const manualColumns = ref<Array<{ key: string; type: "text" | "file" }>>(
+    storedCols ? JSON.parse(storedCols) : []
+  );
+  const showColInput = ref(false);
+  const newColKey = ref("");
+  const newColType = ref<"text" | "file">("text");
+
+  watch(manualColumns, (val) => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(val));
+  }, { deep: true });
+
+  const fileTypeKeys = computed(() =>
+    new Set(manualColumns.value.filter((c) => c.type === "file").map((c) => c.key))
+  );
+
+  function addColumn() {
+    const k = newColKey.value.trim();
+    if (!k) return;
+    if (manualColumns.value.some((c) => c.key === k) || visibleDataKeys.value.includes(k)) return;
+    manualColumns.value.push({ key: k, type: newColType.value });
+    newColKey.value = "";
+    newColType.value = "text";
+    showColInput.value = false;
+  }
+
+  // When a new column is added while the create modal is open, add it to the form
+  watch(manualColumns, (cols) => {
+    if (!showCreateModal.value) return;
+    cols.forEach((c) => {
+      if (!(c.key in createForm.value.data)) {
+        createForm.value.data[c.key] = "";
+      }
+    });
+  }, { deep: true });
+
+  // Edit
   const editingRecord = ref<ImportRecord | null>(null);
   const editForm = ref<{ data: Record<string, unknown>; profile_id: string }>({
     data: {},
     profile_id: "",
   });
+  const editPendingFiles = ref<Record<string, File>>({});
 
   // Create
   const showCreateModal = ref(false);
@@ -31,18 +72,13 @@
     data: {},
     profile_id: "",
   });
-  // For adding custom fields when no records exist
-  const newFieldKey = ref("");
-  const newFieldVal = ref("");
+  const createPendingFiles = ref<Record<string, File>>({});
 
   function openCreate() {
     const template: Record<string, string> = {};
-    if (visibleDataKeys.value.length > 0) {
-      visibleDataKeys.value.forEach((k) => { template[k] = ""; });
-    }
+    visibleDataKeys.value.forEach((k) => { template[k] = ""; });
     createForm.value = { data: template, profile_id: "" };
-    newFieldKey.value = "";
-    newFieldVal.value = "";
+    createPendingFiles.value = {};
     showCreateModal.value = true;
   }
 
@@ -50,23 +86,26 @@
     showCreateModal.value = false;
   }
 
-  function addCustomField() {
-    const k = newFieldKey.value.trim();
-    if (!k) return;
-    createForm.value.data[k] = newFieldVal.value;
-    newFieldKey.value = "";
-    newFieldVal.value = "";
+  function onCreateFileChange(e: Event, key: string) {
+    const file = (e.target as HTMLInputElement).files?.[0];
+    if (file) createPendingFiles.value[key] = file;
   }
 
   function removeCreateField(key: string) {
     const { [key]: _, ...rest } = createForm.value.data;
     createForm.value.data = rest;
+    const { [key]: _f, ...restFiles } = createPendingFiles.value;
+    createPendingFiles.value = restFiles;
   }
 
   async function saveCreate() {
     if (Object.keys(createForm.value.data).length === 0) return;
     creating.value = true;
     try {
+      for (const [key, file] of Object.entries(createPendingFiles.value)) {
+        const url = await uploadService.upload(file);
+        createForm.value.data[key] = url;
+      }
       const profileId = createForm.value.profile_id.trim() || null;
       await importsService.create({
         data: createForm.value.data as Record<string, unknown>,
@@ -151,20 +190,39 @@
 
   function openEdit(record: ImportRecord) {
     editingRecord.value = record;
-    editForm.value = {
-      data: { ...record.data },
-      profile_id: record.profile_id ?? "",
-    };
+    const data: Record<string, unknown> = { ...record.data };
+    // Include any manually-added columns not yet in this record
+    manualColumns.value.forEach((c) => {
+      if (!(c.key in data)) data[c.key] = "";
+    });
+    editForm.value = { data, profile_id: record.profile_id ?? "" };
+    editPendingFiles.value = {};
   }
 
   function closeEdit() {
     editingRecord.value = null;
   }
 
+  function onEditFileChange(e: Event, key: string) {
+    const file = (e.target as HTMLInputElement).files?.[0];
+    if (file) editPendingFiles.value[key] = file;
+  }
+
+  function removeEditField(key: string) {
+    const { [key]: _, ...rest } = editForm.value.data as Record<string, unknown>;
+    editForm.value.data = rest;
+    const { [key]: _f, ...restFiles } = editPendingFiles.value;
+    editPendingFiles.value = restFiles;
+  }
+
   async function saveEdit() {
     if (!editingRecord.value) return;
     saving.value = true;
     try {
+      for (const [key, file] of Object.entries(editPendingFiles.value)) {
+        const url = await uploadService.upload(file);
+        (editForm.value.data as Record<string, unknown>)[key] = url;
+      }
       const profileId = editForm.value.profile_id.trim() || null;
       await importsService.update(editingRecord.value.id, {
         data: editForm.value.data,
@@ -192,9 +250,11 @@
   });
 
   const visibleDataKeys = computed(() => {
-    if (records.value.length === 0) return [];
-    const firstRecord = records.value[0];
-    return Object.keys(firstRecord?.data ?? {});
+    // Union of ALL records' keys (not just first) so every column is shown
+    const allKeys = new Set<string>();
+    records.value.forEach((r) => Object.keys(r.data ?? {}).forEach((k) => allKeys.add(k)));
+    const manualKeys = manualColumns.value.map((c) => c.key).filter((k) => !allKeys.has(k));
+    return [...allKeys, ...manualKeys];
   });
 
   function truncate(val: string, len = 36) {
@@ -319,13 +379,38 @@
               <th v-for="key in visibleDataKeys" :key="key">{{ key }}</th>
               <th>Fecha</th>
               <th>Acciones</th>
+              <th class="th-add-col">
+                <template v-if="!showColInput">
+                  <button class="btn-add-col" title="Agregar columna" @click="showColInput = true">+</button>
+                </template>
+                <div v-else class="add-col-form">
+                  <input
+                    v-model="newColKey"
+                    class="form-input form-input--col"
+                    placeholder="Nombre columna"
+                    @keyup.enter="addColumn"
+                    @keyup.escape="showColInput = false"
+                  />
+                  <select v-model="newColType" class="form-select--type">
+                    <option value="text">Texto</option>
+                    <option value="file">Imagen</option>
+                  </select>
+                  <button class="btn-icon" title="Confirmar" @click="addColumn">✓</button>
+                  <button class="btn-icon btn-icon--danger" title="Cancelar" @click="showColInput = false">✕</button>
+                </div>
+              </th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="record in filteredRecords" :key="record.id">
               <td class="mono">{{ truncate(record.id, 8) }}</td>
               <td v-for="key in visibleDataKeys" :key="key">
-                {{ String(record.data?.[key] ?? "") }}
+                <template v-if="String(record.data?.[key] ?? '').startsWith('http')">
+                  <a :href="String(record.data?.[key])" target="_blank" class="url-cell">
+                    {{ truncate(String(record.data?.[key]), 30) }}
+                  </a>
+                </template>
+                <template v-else>{{ String(record.data?.[key] ?? "") }}</template>
               </td>
               <td>{{ formatDate(record.created_at) }}</td>
               <td class="actions-cell">
@@ -343,6 +428,7 @@
                   {{ deleting === record.id ? "…" : "Eliminar" }}
                 </button>
               </td>
+              <td></td>
             </tr>
           </tbody>
         </table>
@@ -390,32 +476,22 @@
         >
           <label>{{ key }}</label>
           <div class="form-group__row">
+            <label
+              v-if="fileTypeKeys.has(String(key))"
+              class="btn-file-pick"
+              :class="{ 'has-file': createPendingFiles[String(key)] }"
+            >
+              {{ createPendingFiles[String(key)]?.name ?? (createForm.data[String(key)] || 'Seleccionar imagen') }}
+              <input type="file" accept="image/*" class="file-input" @change="onCreateFileChange($event, String(key))" />
+            </label>
             <input
+              v-else
               v-model="(createForm.data as Record<string, string>)[key as string]"
               type="text"
               class="form-input"
             />
             <button class="btn-icon btn-icon--danger" title="Quitar campo" @click="removeCreateField(String(key))">✕</button>
           </div>
-        </div>
-
-        <!-- Add custom field row (always visible so admin can add arbitrary columns) -->
-        <div class="add-field-row">
-          <input
-            v-model="newFieldKey"
-            type="text"
-            class="form-input form-input--key"
-            placeholder="Campo"
-            @keyup.enter="addCustomField"
-          />
-          <input
-            v-model="newFieldVal"
-            type="text"
-            class="form-input"
-            placeholder="Valor"
-            @keyup.enter="addCustomField"
-          />
-          <button class="btn btn-sm btn-secondary" @click="addCustomField">+</button>
         </div>
 
         <div class="modal-actions">
@@ -439,14 +515,26 @@
         <div
           v-for="(_, key) in editForm.data"
           :key="String(key)"
-          class="form-group"
+          class="form-group form-group--row"
         >
           <label>{{ key }}</label>
-          <input
-            v-model="(editForm.data as Record<string, unknown>)[key] as string"
-            type="text"
-            class="form-input"
-          />
+          <div class="form-group__row">
+            <label
+              v-if="fileTypeKeys.has(String(key))"
+              class="btn-file-pick"
+              :class="{ 'has-file': editPendingFiles[String(key)] }"
+            >
+              {{ editPendingFiles[String(key)]?.name ?? (String(editForm.data[String(key)] || 'Seleccionar imagen')) }}
+              <input type="file" accept="image/*" class="file-input" @change="onEditFileChange($event, String(key))" />
+            </label>
+            <input
+              v-else
+              v-model="(editForm.data as Record<string, unknown>)[key] as string"
+              type="text"
+              class="form-input"
+            />
+            <button class="btn-icon btn-icon--danger" title="Quitar campo" @click="removeEditField(String(key))">✕</button>
+          </div>
         </div>
 
         <div class="modal-actions">
@@ -616,6 +704,91 @@
     max-width: 140px;
   }
 
+  .th-add-col {
+    white-space: nowrap;
+    width: 1%;
+    position: relative;
+  }
+
+  .btn-add-col {
+    background: none;
+    border: 1px dashed var(--border-default);
+    border-radius: var(--radius-sm);
+    color: var(--color-text-muted);
+    cursor: pointer;
+    font-size: 1rem;
+    line-height: 1;
+    padding: 0.1rem 0.5rem;
+    transition: border-color var(--transition-fast), color var(--transition-fast);
+  }
+
+  .btn-add-col:hover {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+  }
+
+  .add-col-form {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: var(--bg-white);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    padding: 0.35rem 0.5rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    position: absolute;
+    top: calc(100% + 4px);
+    right: 0;
+    z-index: 10;
+    min-width: 320px;
+  }
+
+  .form-input--col {
+    flex: 1;
+    padding: 0.4rem 0.6rem;
+    font-size: 0.875rem;
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    min-width: 0;
+  }
+
+  .form-select--type {
+    padding: 0.45rem 0.5rem;
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    font-size: 0.85rem;
+    background: var(--bg-white);
+    color: var(--color-text-primary);
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  .btn-file-pick {
+    flex: 1;
+    display: inline-flex;
+    align-items: center;
+    padding: 0.45rem 0.75rem;
+    border: 1px dashed var(--border-default);
+    border-radius: var(--radius-sm);
+    font-size: 0.85rem;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: border-color var(--transition-fast), color var(--transition-fast);
+  }
+
+  .btn-file-pick:hover,
+  .btn-file-pick.has-file {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+  }
+
+  .btn-file-pick .file-input {
+    display: none;
+  }
+
   .upload-controls {
     display: flex;
     align-items: center;
@@ -765,6 +938,17 @@
   .mono {
     font-family: monospace;
     font-size: 0.8rem;
+  }
+
+  .url-cell {
+    color: var(--color-primary);
+    text-decoration: none;
+    font-size: 0.8rem;
+    font-family: monospace;
+  }
+
+  .url-cell:hover {
+    text-decoration: underline;
   }
 
   /* Modal */
