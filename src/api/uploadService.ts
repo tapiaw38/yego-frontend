@@ -30,4 +30,8 @@ export const uploadService = {
     await this.uploadToS3(upload_url, file)
     return public_url
   },
+
+  async deleteByUrl(url: string): Promise<void> {
+    await apiClient.delete('/api/admin/uploads', { params: { key: url } })
+  },
 }
