@@ -209,7 +209,15 @@
   }
 
   function removeEditField(key: string) {
-    const { [key]: _, ...rest } = editForm.value.data as Record<string, unknown>;
+    const data = editForm.value.data as Record<string, unknown>;
+    const currentValue = String(data[key] ?? "");
+    // If it's a file-type field with an existing S3 URL, delete from S3
+    if (fileTypeKeys.value.has(key) && currentValue.startsWith("https://")) {
+      uploadService.deleteByUrl(currentValue).catch((err) =>
+        console.error("S3 delete failed:", err)
+      );
+    }
+    const { [key]: _, ...rest } = data;
     editForm.value.data = rest;
     const { [key]: _f, ...restFiles } = editPendingFiles.value;
     editPendingFiles.value = restFiles;
