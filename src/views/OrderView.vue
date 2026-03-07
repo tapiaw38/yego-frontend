@@ -96,11 +96,11 @@
     return isUserAdmin.value;
   });
 
-  // Check if user can request modification (profile owner AND status before ON_THE_WAY)
+  // Check if user can request modification (profile owner AND only before payment)
   const canRequestModification = computed(() => {
     if (!isOrderOwner.value || !order.value) return false;
     if (isUserAdmin.value) return false;
-    return ["CREATED", "CONFIRMED", "PREPARING"].includes(order.value.status);
+    return order.value.status === "CREATED";
   });
 
   // Calculate order total
