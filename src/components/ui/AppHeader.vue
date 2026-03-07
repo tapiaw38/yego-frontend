@@ -8,6 +8,8 @@ import { authService } from "@/api/authService";
 import { isAdmin } from "@/types/auth";
 import yegoLogo from "@/assets/img/yego-logo.png";
 import NotificationBell from "./NotificationBell.vue";
+import ChangePasswordModal from "@/components/ChangePasswordModal.vue";
+import SetPasswordModal from "@/components/SetPasswordModal.vue";
 
 interface Props {
   title?: string;
@@ -34,10 +36,13 @@ const emit = defineEmits<{
 
 const router = useRouter();
 const menu = ref<InstanceType<typeof Menu>>();
+const showChangePassword = ref(false);
+const showSetPassword = ref(false);
 const currentUser = ref<{
   first_name?: string;
   last_name?: string;
   email?: string;
+  auth_method?: string;
 } | null>(null);
 const userIsAdmin = ref(false);
 
@@ -80,6 +85,19 @@ const menuItems = computed(() => {
     command: () => router.push("/payment-methods"),
   });
 
+  const isGoogleUser = currentUser.value?.auth_method === 'google';
+  items.push({
+    label: isGoogleUser ? "Establecer Contraseña" : "Cambiar Contraseña",
+    icon: "pi pi-lock",
+    command: () => {
+      if (isGoogleUser) {
+        showSetPassword.value = true;
+      } else {
+        showChangePassword.value = true;
+      }
+    },
+  });
+
   if (props.isAdmin || userIsAdmin.value) {
     items.push({ separator: true });
     items.push({
@@ -120,15 +138,19 @@ const handleLogout = () => {
   router.push("/login");
 };
 
+const refreshCurrentUser = async () => {
+  try {
+    const response = await authService.me();
+    currentUser.value = response.data;
+    userIsAdmin.value = isAdmin(response.data);
+  } catch {
+    // Silent fail
+  }
+};
+
 onMounted(async () => {
   if (authService.isAuthenticated()) {
-    try {
-      const response = await authService.me();
-      currentUser.value = response.data;
-      userIsAdmin.value = isAdmin(response.data);
-    } catch {
-      // Silent fail - user might not be logged in
-    }
+    await refreshCurrentUser();
   }
 });
 </script>
@@ -183,6 +205,9 @@ onMounted(async () => {
       <Menu ref="menu" :model="menuItems" popup class="user-menu" />
     </div>
   </header>
+
+  <ChangePasswordModal v-model:visible="showChangePassword" />
+  <SetPasswordModal v-model:visible="showSetPassword" @success="refreshCurrentUser" />
 </template>
 
 <style scoped>

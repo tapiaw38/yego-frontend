@@ -12,6 +12,7 @@ export interface User {
   picture: string | null
   is_active: boolean
   verified_email: boolean
+  auth_method: 'password' | 'google' | 'hybrid'
   roles: Role[]
 }
 

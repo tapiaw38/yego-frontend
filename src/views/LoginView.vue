@@ -51,6 +51,18 @@
       : "La contrasena debe tener al menos 6 caracteres";
   });
 
+  const registerPasswordError = computed(() => {
+    const p = password.value;
+    if (!p) return "";
+    if (p.length < 8) return "La contrasena debe tener al menos 8 caracteres";
+    if (!/[A-Z]/.test(p)) return "Debe contener al menos una letra mayuscula";
+    if (!/[a-z]/.test(p)) return "Debe contener al menos una letra minuscula";
+    if (!/[0-9]/.test(p)) return "Debe contener al menos un numero";
+    if (!/[!@#$%^&*()_+\-=\[\]{}|;:,.<>?]/.test(p))
+      return "Debe contener al menos un caracter especial (!@#$%^&*...)";
+    return "";
+  });
+
   const confirmPasswordError = computed(() => {
     if (!confirmPassword.value) return "";
     return confirmPassword.value === password.value
@@ -72,7 +84,7 @@
       password.value &&
       confirmPassword.value &&
       !emailError.value &&
-      !passwordError.value &&
+      !registerPasswordError.value &&
       !confirmPasswordError.value
     );
   });
@@ -264,13 +276,13 @@
               id="registerPassword"
               v-model="password"
               type="password"
-              placeholder="Minimo 6 caracteres"
+              placeholder="Minimo 8 caracteres, mayus, num y especial"
               class="form-input"
-              :class="{ 'input-error': passwordError }"
+              :class="{ 'input-error': registerPasswordError }"
               required
             />
-            <small v-if="passwordError" class="error-text text-danger">{{
-              passwordError
+            <small v-if="registerPasswordError" class="error-text text-danger">{{
+              registerPasswordError
             }}</small>
           </div>
 

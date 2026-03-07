@@ -28,6 +28,19 @@ export const authService = {
     return data
   },
 
+  async changePassword(oldPassword: string, newPassword: string): Promise<void> {
+    await authClient.put('/user/me/password', {
+      old_password: oldPassword,
+      new_password: newPassword,
+    })
+  },
+
+  async setPassword(newPassword: string): Promise<void> {
+    await authClient.post('/user/me/password/set', {
+      new_password: newPassword,
+    })
+  },
+
   getToken(): string | null {
     return localStorage.getItem('token')
   },
