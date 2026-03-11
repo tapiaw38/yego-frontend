@@ -10,7 +10,7 @@ import UserOrdersView from '../views/UserOrdersView.vue'
 import PaymentMethodsView from '../views/PaymentMethodsView.vue'
 import NotFoundView from '../views/NotFoundView.vue'
 import { authService } from '../api/authService'
-import { isAdmin } from '../types/auth'
+import { isAdmin, isDelivery } from '../types/auth'
 
 // Auth guard for protected routes
 const isAuthenticated = (): boolean => {
@@ -22,6 +22,15 @@ const checkAdminRole = async (): Promise<boolean> => {
   try {
     const response = await authService.me()
     return isAdmin(response.data)
+  } catch {
+    return false
+  }
+}
+
+const checkDeliveryRole = async (): Promise<boolean> => {
+  try {
+    const response = await authService.me()
+    return isDelivery(response.data)
   } catch {
     return false
   }
@@ -93,10 +102,22 @@ const router = createRouter({
       meta: { requiresAuth: true, requiresAdmin: true }
     },
     {
+      path: '/delivery',
+      name: 'delivery',
+      component: () => import('../views/DeliveryView.vue'),
+      meta: { requiresAuth: true, requiresDelivery: true }
+    },
+    {
       path: '/payment-methods',
       name: 'payment-methods',
       component: PaymentMethodsView,
       meta: { requiresAuth: true }
+    },
+    {
+      path: '/auth/reset-password',
+      name: 'reset-password',
+      component: () => import('../views/ResetPasswordView.vue'),
+      meta: { requiresGuest: true }
     },
     {
       path: '/:pathMatch(.*)*',
@@ -122,6 +143,15 @@ router.beforeEach(async (to, _from, next) => {
   if (to.meta.requiresAdmin && authenticated) {
     const hasAdminRole = await checkAdminRole()
     if (!hasAdminRole) {
+      next({ name: 'profile' })
+      return
+    }
+  }
+
+  // If route requires delivery role
+  if (to.meta.requiresDelivery && authenticated) {
+    const hasDeliveryRole = await checkDeliveryRole()
+    if (!hasDeliveryRole) {
       next({ name: 'profile' })
       return
     }

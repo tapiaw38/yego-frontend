@@ -2,6 +2,7 @@
   import { ref, computed } from "vue";
   import { useRouter, useRoute } from "vue-router";
   import { useAuth } from "@/composables/useAuth";
+  import { authService } from "@/api/authService";
   import GoogleButton from "../components/GoogleButton.vue";
   import yegoLogo from "../assets/img/yego-logo.png";
 
@@ -21,7 +22,7 @@
     return (route.query.redirect as string) || "/profile";
   });
 
-  type ViewMode = "login" | "register";
+  type ViewMode = "login" | "register" | "forgot";
   const currentView = ref<ViewMode>("login");
 
   const email = ref("");
@@ -29,6 +30,9 @@
   const firstName = ref("");
   const lastName = ref("");
   const confirmPassword = ref("");
+  const forgotSent = ref(false);
+  const forgotLoading = ref(false);
+  const forgotError = ref("");
 
   const loading = computed(
     () => isLoginPending.value || isRegisterPending.value,
@@ -98,6 +102,21 @@
     confirmPassword.value = "";
   };
 
+  const handleForgotPassword = async () => {
+    if (!email.value) return;
+    forgotLoading.value = true;
+    forgotError.value = "";
+    try {
+      await authService.requestResetPassword(email.value);
+      forgotSent.value = true;
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { message?: string } } };
+      forgotError.value = e.response?.data?.message || "Error al enviar el email";
+    } finally {
+      forgotLoading.value = false;
+    }
+  };
+
   const handleLogin = async () => {
     if (!isLoginValid.value) return;
 
@@ -161,7 +180,9 @@
         </div>
         <p class="login-subtitle">
           {{
-            currentView === "login" ? "Bienvenido de vuelta" : "Crea tu cuenta"
+            currentView === "login" ? "Bienvenido de vuelta"
+            : currentView === "register" ? "Crea tu cuenta"
+            : "Recupera tu acceso"
           }}
         </p>
       </div>
@@ -169,14 +190,14 @@
       <div class="login-card">
         <div class="form-header">
           <div class="form-icon gradient-primary">
-            <i
-              v-if="currentView === 'login'"
-              class="pi pi-lock text-white"
-            ></i>
-            <i v-else class="pi pi-user-plus text-white"></i>
+            <i v-if="currentView === 'login'" class="pi pi-lock text-white"></i>
+            <i v-else-if="currentView === 'register'" class="pi pi-user-plus text-white"></i>
+            <i v-else class="pi pi-envelope text-white"></i>
           </div>
           <h2 class="form-title">
-            {{ currentView === "login" ? "Iniciar Sesion" : "Crear Cuenta" }}
+            {{ currentView === "login" ? "Iniciar Sesion"
+               : currentView === "register" ? "Crear Cuenta"
+               : "Recuperar Contrasena" }}
           </h2>
         </div>
 
@@ -220,6 +241,12 @@
             {{ error }}
           </div>
 
+          <div class="forgot-link">
+            <button type="button" class="toggle-button text-primary" @click="currentView = 'forgot'; email = ''">
+              Olvidaste tu contrasena?
+            </button>
+          </div>
+
           <button
             type="submit"
             class="submit-button btn-primary"
@@ -227,6 +254,49 @@
           >
             <span v-if="loading">Iniciando sesion...</span>
             <span v-else>Iniciar Sesion</span>
+          </button>
+        </form>
+
+        <!-- Forgot Password Form -->
+        <form v-else-if="currentView === 'forgot'" @submit.prevent="handleForgotPassword" class="auth-form">
+          <div v-if="forgotSent" class="forgot-success">
+            <i class="pi pi-check-circle"></i>
+            <p>Revisa tu correo electronico para continuar con el restablecimiento de contrasena.</p>
+          </div>
+
+          <template v-else>
+            <p class="forgot-desc">
+              Ingresa tu email y te enviaremos un enlace para restablecer tu contrasena.
+            </p>
+
+            <div class="form-group">
+              <label for="forgot-email">Email</label>
+              <input
+                id="forgot-email"
+                v-model="email"
+                type="email"
+                placeholder="tu@email.com"
+                class="form-input"
+                :class="{ 'input-error': emailError }"
+                required
+              />
+              <small v-if="emailError" class="error-text text-danger">{{ emailError }}</small>
+            </div>
+
+            <div v-if="forgotError" class="form-error">{{ forgotError }}</div>
+
+            <button
+              type="submit"
+              class="submit-button btn-primary"
+              :disabled="forgotLoading || !email || !!emailError"
+            >
+              <span v-if="forgotLoading">Enviando...</span>
+              <span v-else>Enviar enlace</span>
+            </button>
+          </template>
+
+          <button type="button" class="toggle-button text-primary back-link" @click="currentView = 'login'">
+            <i class="pi pi-arrow-left"></i> Volver al inicio de sesion
           </button>
         </form>
 
@@ -316,28 +386,29 @@
           </button>
         </form>
 
-        <!-- Divider -->
-        <div class="divider">
-          <span class="divider-text text-gray-500">o continua con</span>
-        </div>
+        <!-- Divider + Google only for login/register -->
+        <template v-if="currentView !== 'forgot'">
+          <div class="divider">
+            <span class="divider-text text-gray-500">o continua con</span>
+          </div>
 
-        <!-- Google Button -->
-        <div class="social-login">
-          <GoogleButton @code="handleGoogleLogin" />
-        </div>
+          <div class="social-login">
+            <GoogleButton @code="handleGoogleLogin" />
+          </div>
 
-        <div class="form-footer">
-          <p class="toggle-text text-gray-500">
-            {{
-              currentView === "login"
-                ? "No tienes una cuenta?"
-                : "Ya tienes una cuenta?"
-            }}
-            <button type="button" class="toggle-button text-primary" @click="toggleView">
-              {{ currentView === "login" ? "Crear cuenta" : "Iniciar sesion" }}
-            </button>
-          </p>
+          <div class="form-footer">
+            <p class="toggle-text text-gray-500">
+              {{
+                currentView === "login"
+                  ? "No tienes una cuenta?"
+                  : "Ya tienes una cuenta?"
+              }}
+              <button type="button" class="toggle-button text-primary" @click="toggleView">
+                {{ currentView === "login" ? "Crear cuenta" : "Iniciar sesion" }}
+              </button>
+            </p>
         </div>
+        </template>
       </div>
 
       <!-- Loading Overlay -->
@@ -654,6 +725,46 @@
   .loading-text {
     font-weight: var(--font-medium);
     margin: 0;
+  }
+
+  .forgot-link {
+    text-align: right;
+    margin-top: -0.5rem;
+  }
+
+  .forgot-desc {
+    font-size: 0.875rem;
+    color: var(--color-text-secondary);
+    margin: 0;
+    line-height: 1.5;
+  }
+
+  .forgot-success {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem 0;
+    color: var(--color-success-dark);
+    text-align: center;
+  }
+
+  .forgot-success i {
+    font-size: 2.5rem;
+  }
+
+  .forgot-success p {
+    margin: 0;
+    font-size: 0.875rem;
+    line-height: 1.5;
+  }
+
+  .back-link {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    font-size: 0.875rem;
+    margin-top: 0.5rem;
   }
 
   /* Responsive */

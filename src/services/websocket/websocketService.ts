@@ -1,4 +1,10 @@
-export type NotificationType = 'order_claimed' | 'order_updated'
+export type NotificationType =
+  | 'order_claimed'
+  | 'order_updated'
+  | 'order_assigned_to_delivery'
+  | 'delivery_accepted'
+  | 'delivery_location_updated'
+  | 'order_status_updated'
 
 export interface OrderClaimedPayload {
   order_id: string
@@ -9,9 +15,37 @@ export interface OrderClaimedPayload {
   claimed_at: string
 }
 
+export interface OrderAssignedToDeliveryPayload {
+  order_id: string
+  status: string
+  eta: string
+  assigned_at: string
+}
+
+export interface DeliveryAcceptedPayload {
+  order_id: string
+  delivery_user_id: string
+  delivery_accepted_at: string
+}
+
+export interface DeliveryLocationUpdatedPayload {
+  order_id: string
+  user_id: string
+  latitude: number
+  longitude: number
+  timestamp: string
+}
+
+export interface OrderStatusUpdatedPayload {
+  order_id: string
+  status: string
+  status_message?: string
+  eta: string
+}
+
 export interface Notification {
   type: NotificationType
-  payload: OrderClaimedPayload | unknown
+  payload: OrderClaimedPayload | OrderAssignedToDeliveryPayload | DeliveryAcceptedPayload | DeliveryLocationUpdatedPayload | unknown
 }
 
 type MessageHandler = (notification: Notification) => void
@@ -28,28 +62,29 @@ export class WebSocketService {
   private connectHandlers: ConnectionHandler[] = []
   private disconnectHandlers: ConnectionHandler[] = []
   private token: string | null = null
+  private role: string = 'manager'
 
   constructor(baseUrl: string) {
-    // Convert http:// or https:// to ws:// or wss://
     const wsProtocol = baseUrl.startsWith('https') ? 'wss' : 'ws'
     const wsHost = baseUrl.replace(/^https?:\/\//, '')
     this.url = `${wsProtocol}://${wsHost}/ws/notifications`
   }
 
-  connect(token: string): void {
+  connect(token: string, role: 'manager' | 'delivery' = 'manager'): void {
     if (this.ws?.readyState === WebSocket.OPEN) {
       return
     }
 
     this.token = token
+    this.role = role
     this.isManualClose = false
 
     try {
-      const urlWithToken = `${this.url}?token=${encodeURIComponent(token)}`
-      this.ws = new WebSocket(urlWithToken)
+      const urlWithParams = `${this.url}?token=${encodeURIComponent(token)}&role=${role}`
+      this.ws = new WebSocket(urlWithParams)
 
       this.ws.onopen = () => {
-        console.log('[WebSocket] Connected')
+        console.log(`[WebSocket] Connected as ${role}`)
         this.reconnectAttempts = 0
         this.connectHandlers.forEach(handler => handler())
       }
@@ -107,7 +142,7 @@ export class WebSocketService {
 
     this.reconnectTimeout = setTimeout(() => {
       if (this.token) {
-        this.connect(this.token)
+        this.connect(this.token, this.role as 'manager' | 'delivery')
       }
     }, delay)
   }
@@ -116,9 +151,7 @@ export class WebSocketService {
     this.messageHandlers.push(handler)
     return () => {
       const index = this.messageHandlers.indexOf(handler)
-      if (index > -1) {
-        this.messageHandlers.splice(index, 1)
-      }
+      if (index > -1) this.messageHandlers.splice(index, 1)
     }
   }
 
@@ -126,9 +159,7 @@ export class WebSocketService {
     this.connectHandlers.push(handler)
     return () => {
       const index = this.connectHandlers.indexOf(handler)
-      if (index > -1) {
-        this.connectHandlers.splice(index, 1)
-      }
+      if (index > -1) this.connectHandlers.splice(index, 1)
     }
   }
 
@@ -136,10 +167,13 @@ export class WebSocketService {
     this.disconnectHandlers.push(handler)
     return () => {
       const index = this.disconnectHandlers.indexOf(handler)
-      if (index > -1) {
-        this.disconnectHandlers.splice(index, 1)
-      }
+      if (index > -1) this.disconnectHandlers.splice(index, 1)
     }
+  }
+
+  send(type: string, payload: unknown): void {
+    if (this.ws?.readyState !== WebSocket.OPEN) return
+    this.ws.send(JSON.stringify({ type, payload }))
   }
 
   isConnected(): boolean {
@@ -147,6 +181,5 @@ export class WebSocketService {
   }
 }
 
-// Create singleton instance
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8081'
 export const websocketService = new WebSocketService(API_BASE_URL)

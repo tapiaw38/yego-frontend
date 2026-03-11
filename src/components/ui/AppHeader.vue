@@ -5,7 +5,8 @@ import Avatar from "primevue/avatar";
 import { ref, computed, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { authService } from "@/api/authService";
-import { isAdmin } from "@/types/auth";
+import { isAdmin, isDelivery } from "@/types/auth";
+import { websocketService } from "@/services/websocket/websocketService";
 import yegoLogo from "@/assets/img/yego-logo.png";
 import NotificationBell from "./NotificationBell.vue";
 import ChangePasswordModal from "@/components/ChangePasswordModal.vue";
@@ -45,6 +46,7 @@ const currentUser = ref<{
   auth_method?: string;
 } | null>(null);
 const userIsAdmin = ref(false);
+const userIsDelivery = ref(false);
 
 const userInitials = computed(() => {
   const name = props.userName || currentUser.value?.first_name || "U";
@@ -98,6 +100,16 @@ const menuItems = computed(() => {
     },
   });
 
+  if (userIsDelivery.value) {
+    items.push({ separator: true });
+    items.push({
+      label: "Mis Entregas",
+      icon: "pi pi-truck",
+      class: "delivery-menu-item",
+      command: () => router.push("/delivery"),
+    });
+  }
+
   if (props.isAdmin || userIsAdmin.value) {
     items.push({ separator: true });
     items.push({
@@ -143,6 +155,7 @@ const refreshCurrentUser = async () => {
     const response = await authService.me();
     currentUser.value = response.data;
     userIsAdmin.value = isAdmin(response.data);
+    userIsDelivery.value = isDelivery(response.data);
   } catch {
     // Silent fail
   }
@@ -151,6 +164,12 @@ const refreshCurrentUser = async () => {
 onMounted(async () => {
   if (authService.isAuthenticated()) {
     await refreshCurrentUser();
+
+    const token = authService.getToken();
+    if (token && !websocketService.isConnected()) {
+      const role = userIsDelivery.value ? 'delivery' : 'manager';
+      websocketService.connect(token, role);
+    }
   }
 });
 </script>
@@ -332,6 +351,10 @@ onMounted(async () => {
 
 :deep(.user-menu .p-menuitem-link) {
   padding: var(--spacing-sm) var(--spacing-md);
+}
+
+:deep(.delivery-menu-item .p-menuitem-icon) {
+  color: var(--color-primary);
 }
 
 :deep(.admin-menu-item .p-menuitem-icon) {

@@ -8,11 +8,16 @@ import { useWebSocket } from "@/composables/useWebSocket";
 import {
   websocketService,
   type OrderClaimedPayload,
+  type OrderAssignedToDeliveryPayload,
 } from "@/services/websocket/websocketService";
 import { authService } from "@/api/authService";
+import { orderService } from "@/api/orderService";
+
+type NotificationKind = 'order_claimed' | 'order_assigned_to_delivery';
 
 interface Notification {
   id: string;
+  kind: NotificationKind;
   orderId: string;
   userId: string;
   profileId?: string;
@@ -21,6 +26,8 @@ interface Notification {
   claimedAt: string;
   read: boolean;
   createdAt: string;
+  accepting?: boolean;
+  accepted?: boolean;
 }
 
 const router = useRouter();
@@ -98,6 +105,7 @@ const formatDate = (dateString: string) => {
 const addNotification = (payload: OrderClaimedPayload) => {
   const notification: Notification = {
     id: `${payload.order_id}-${Date.now()}`,
+    kind: 'order_claimed',
     orderId: payload.order_id,
     userId: payload.user_id,
     profileId: payload.profile_id,
@@ -115,6 +123,43 @@ const addNotification = (payload: OrderClaimedPayload) => {
   }
 
   saveNotifications();
+};
+
+const addDeliveryNotification = (payload: OrderAssignedToDeliveryPayload) => {
+  const notification: Notification = {
+    id: `delivery-${payload.order_id}-${Date.now()}`,
+    kind: 'order_assigned_to_delivery',
+    orderId: payload.order_id,
+    userId: '',
+    status: payload.status,
+    eta: payload.eta,
+    claimedAt: payload.assigned_at,
+    read: false,
+    createdAt: new Date().toISOString(),
+  };
+
+  notifications.value.unshift(notification);
+
+  if (notifications.value.length > 50) {
+    notifications.value = notifications.value.slice(0, 50);
+  }
+
+  saveNotifications();
+};
+
+const acceptDelivery = async (notification: Notification) => {
+  if (notification.accepting || notification.accepted) return;
+  notification.accepting = true;
+  try {
+    await orderService.acceptDelivery(notification.orderId);
+    notification.accepted = true;
+    notification.read = true;
+    saveNotifications();
+  } catch (err) {
+    console.error('Error accepting delivery:', err);
+  } finally {
+    notification.accepting = false;
+  }
 };
 
 const loadNotifications = () => {
@@ -139,6 +184,9 @@ useWebSocket({
   onOrderClaimed: (payload: OrderClaimedPayload) => {
     addNotification(payload);
   },
+  onOrderAssignedToDelivery: (payload: OrderAssignedToDeliveryPayload) => {
+    addDeliveryNotification(payload);
+  },
 });
 
 const updatePageTitle = () => {
@@ -161,13 +209,7 @@ watch(
 onMounted(() => {
   loadNotifications();
   updatePageTitle();
-
-  const token = authService.getToken();
-  if (token) {
-    if (!websocketService.isConnected()) {
-      websocketService.connect(token);
-    }
-  }
+  // WebSocket connection is managed by AppHeader (which knows the user role)
 });
 
 onUnmounted(() => {
@@ -221,28 +263,62 @@ onUnmounted(() => {
           v-for="notification in unreadNotifications"
           :key="notification.id"
           class="notification-item"
-          :class="{ unread: !notification.read }"
-          role="button"
-          tabindex="0"
-          @click="goToOrder(notification.orderId, notification.id)"
-          @keydown.enter="goToOrder(notification.orderId, notification.id)"
+          :class="{ unread: !notification.read, 'delivery-item': notification.kind === 'order_assigned_to_delivery' }"
         >
-          <div class="notification-content">
-            <div class="notification-title">
-              <i class="pi pi-shopping-bag text-primary"></i>
-              <span>Nueva orden asignada</span>
-              <span v-if="!notification.read" class="unread-dot" aria-hidden="true"></span>
+          <!-- Delivery notification: con botón Aceptar -->
+          <template v-if="notification.kind === 'order_assigned_to_delivery'">
+            <div class="notification-content">
+              <div class="notification-title">
+                <i class="pi pi-truck text-primary"></i>
+                <span>Nueva entrega disponible</span>
+                <span v-if="!notification.read" class="unread-dot" aria-hidden="true"></span>
+              </div>
+              <div class="notification-body">
+                <p class="notification-order-id">
+                  Orden: {{ notification.orderId.slice(0, 8) }}...
+                </p>
+                <p v-if="notification.eta" class="notification-eta">ETA: {{ notification.eta }}</p>
+                <p class="notification-time">{{ formatDate(notification.createdAt) }}</p>
+              </div>
+              <div class="notification-actions">
+                <Button
+                  v-if="!notification.accepted"
+                  :label="notification.accepting ? 'Aceptando...' : 'Aceptar entrega'"
+                  :loading="notification.accepting"
+                  size="small"
+                  class="accept-btn"
+                  @click.stop="acceptDelivery(notification)"
+                />
+                <span v-else class="accepted-label">
+                  <i class="pi pi-check-circle"></i> Aceptada
+                </span>
+              </div>
             </div>
-            <div class="notification-body">
-              <p class="notification-order-id">
-                Orden: {{ notification.orderId.slice(0, 8) }}...
-              </p>
-              <p class="notification-time">
-                {{ formatDate(notification.createdAt) }}
-              </p>
+          </template>
+
+          <!-- Regular notification: order claimed -->
+          <template v-else>
+            <div
+              class="notification-content"
+              role="button"
+              tabindex="0"
+              @click="goToOrder(notification.orderId, notification.id)"
+              @keydown.enter="goToOrder(notification.orderId, notification.id)"
+            >
+              <div class="notification-title">
+                <i class="pi pi-shopping-bag text-primary"></i>
+                <span>Nueva orden asignada</span>
+                <span v-if="!notification.read" class="unread-dot" aria-hidden="true"></span>
+              </div>
+              <div class="notification-body">
+                <p class="notification-order-id">
+                  Orden: {{ notification.orderId.slice(0, 8) }}...
+                </p>
+                <p class="notification-time">{{ formatDate(notification.createdAt) }}</p>
+              </div>
             </div>
-          </div>
-          <i class="pi pi-chevron-right notification-arrow"></i>
+            <i class="pi pi-chevron-right notification-arrow"></i>
+          </template>
         </div>
       </div>
     </OverlayPanel>
@@ -435,6 +511,37 @@ onUnmounted(() => {
   color: var(--vt-c-gray-400);
   margin-left: var(--spacing-sm);
   flex-shrink: 0;
+}
+
+.notification-eta {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+}
+
+.notification-actions {
+  margin-top: var(--spacing-xs);
+}
+
+.accept-btn {
+  font-size: 0.8125rem !important;
+  padding: 0.25rem 0.75rem !important;
+  background: var(--color-primary) !important;
+  border-color: var(--color-primary) !important;
+}
+
+.accepted-label {
+  font-size: 0.8125rem;
+  color: var(--color-success, #10b981);
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.delivery-item {
+  border-left: 3px solid var(--color-primary) !important;
+  background: color-mix(in srgb, var(--color-primary) 5%, var(--bg-white)) !important;
 }
 
 @media (max-width: 640px) {

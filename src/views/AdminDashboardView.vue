@@ -1,9 +1,10 @@
 <script setup lang="ts">
-  import { ref, onMounted, onUnmounted } from "vue";
+  import { ref, computed, onMounted, onUnmounted } from "vue";
   import { useRouter } from "vue-router";
   import { useToast } from "primevue/usetoast";
   import { apiClient } from "../api/client";
   import { authClient } from "../api/authClient";
+  import { orderService } from "../api/orderService";
   import { authService } from "../api/authService";
   import { paymentService } from "../api/paymentService";
   import { transactionService } from "../api/transactionService";
@@ -20,8 +21,13 @@
   import {
     websocketService,
     type OrderClaimedPayload,
+    type DeliveryAcceptedPayload,
+    type DeliveryLocationUpdatedPayload,
   } from "@/services/websocket/websocketService";
   import Toast from "primevue/toast";
+  import Select from "primevue/select";
+  import type { User as AuthUser } from "@/types/auth";
+  import DeliveryMap from "@/components/DeliveryMap.vue";
 
   const router = useRouter();
   const toast = useToast();
@@ -63,6 +69,8 @@
         weight?: number;
       }>;
     };
+    delivery_user_id?: string;
+    delivery_accepted_at?: string;
     created_at: string;
     updated_at: string;
     all_statuses: string[];
@@ -93,6 +101,16 @@
   const viewingOrder = ref<Order | null>(null);
   const isEditingItems = ref(false);
   const savingItems = ref(false);
+  const assignDeliveryUserId = ref<string>("");
+  const savingDelivery = ref(false);
+  const deliveryUsers = ref<AuthUser[]>([]);
+  const deliveryUsersLoading = ref(false);
+  const deliveryUsersOptions = computed(() =>
+    deliveryUsers.value.map((u) => ({
+      ...u,
+      display_name: `${u.first_name} ${u.last_name}`,
+    }))
+  );
   const editableItems = ref<
     Array<{ name: string; price: number; quantity: number; weight?: number }>
   >([]);
@@ -226,14 +244,52 @@
     viewingProfile.value = null;
   };
 
+  const loadDeliveryUsers = async () => {
+    if (deliveryUsers.value.length > 0) return;
+    deliveryUsersLoading.value = true;
+    try {
+      const res = await authService.listUsers({ role: "delivery" });
+      deliveryUsers.value = res.data ?? [];
+    } catch (err) {
+      console.error("Error loading delivery users:", err);
+    } finally {
+      deliveryUsersLoading.value = false;
+    }
+  };
+
   const openOrderDetail = (order: Order) => {
     viewingOrder.value = order;
+    loadDeliveryUsers();
   };
 
   const closeOrderDetail = () => {
     viewingOrder.value = null;
     isEditingItems.value = false;
     editableItems.value = [];
+    assignDeliveryUserId.value = "";
+  };
+
+  const saveAssignDelivery = async () => {
+    if (!viewingOrder.value || !assignDeliveryUserId.value || savingDelivery.value) return;
+    savingDelivery.value = true;
+    try {
+      const updated = await orderService.assignDelivery(
+        viewingOrder.value.id,
+        assignDeliveryUserId.value
+      );
+      viewingOrder.value.delivery_user_id = (updated as any).delivery_user_id ?? assignDeliveryUserId.value;
+      const idx = orders.value.findIndex(o => o.id === viewingOrder.value?.id);
+      if (idx !== -1) {
+        orders.value[idx].delivery_user_id = viewingOrder.value.delivery_user_id;
+      }
+      assignDeliveryUserId.value = "";
+      toast.add({ severity: "success", summary: "Entrega asignada", detail: "El repartidor fue notificado", life: 3000 });
+    } catch (err) {
+      console.error("Error assigning delivery:", err);
+      toast.add({ severity: "error", summary: "Error", detail: "No se pudo asignar el repartidor", life: 3000 });
+    } finally {
+      savingDelivery.value = false;
+    }
   };
 
   // ── Autocomplete productos desde imports ─────────────────────────────────
@@ -579,18 +635,51 @@
   // WebSocket connection status
   const wsConnected = ref(false);
 
+  // Delivery location tracking per order
+  const deliveryLocations = ref<Record<string, { lat: number; lng: number; timestamp: string }>>({});
+
   // Setup WebSocket for real-time notifications
   const { isConnected } = useWebSocket({
     onOrderClaimed: (payload: OrderClaimedPayload) => {
-      // Show toast notification
       toast.add({
         severity: "info",
         summary: "Nueva Orden Asignada",
         detail: `Un usuario ha reclamado la orden ${payload.order_id.slice(0, 8)}...`,
         life: 5000,
       });
-      // Refresh orders list
       fetchData();
+    },
+    onDeliveryAccepted: (payload: DeliveryAcceptedPayload) => {
+      // Update order in list
+      const idx = orders.value.findIndex((o) => o.id === payload.order_id);
+      if (idx !== -1) {
+        orders.value[idx] = {
+          ...orders.value[idx],
+          delivery_user_id: payload.delivery_user_id,
+          delivery_accepted_at: payload.delivery_accepted_at,
+        };
+      }
+      // Update open detail panel if same order
+      if (viewingOrder.value?.id === payload.order_id) {
+        viewingOrder.value = {
+          ...viewingOrder.value,
+          delivery_user_id: payload.delivery_user_id,
+          delivery_accepted_at: payload.delivery_accepted_at,
+        };
+      }
+      toast.add({
+        severity: "success",
+        summary: "Repartidor en camino",
+        detail: `El repartidor aceptó el pedido ${payload.order_id.slice(0, 8)}...`,
+        life: 5000,
+      });
+    },
+    onDeliveryLocationUpdated: (payload: DeliveryLocationUpdatedPayload) => {
+      deliveryLocations.value[payload.order_id] = {
+        lat: payload.latitude,
+        lng: payload.longitude,
+        timestamp: payload.timestamp,
+      };
     },
     onConnected: () => {
       wsConnected.value = true;
@@ -1301,6 +1390,72 @@
           </div>
           <div v-else class="no-items-message">
             <p>Este pedido no tiene items registrados.</p>
+          </div>
+
+          <!-- Delivery Location Map (shows when order is ON_THE_WAY and repartidor is sharing location) -->
+          <div
+            v-if="viewingOrder.delivery_user_id && deliveryLocations[viewingOrder.id]"
+            class="delivery-map-section"
+          >
+            <h3><i class="pi pi-map-marker"></i> Ubicación del repartidor</h3>
+            <p class="delivery-map-updated">
+              Actualizado: {{ new Date(deliveryLocations[viewingOrder.id].timestamp).toLocaleTimeString('es-AR') }}
+            </p>
+            <div class="delivery-map-actions">
+              <a
+                :href="`https://www.google.com/maps?q=${deliveryLocations[viewingOrder.id].lat},${deliveryLocations[viewingOrder.id].lng}`"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="btn-open-maps"
+              >
+                <i class="pi pi-external-link"></i> Ver en Google Maps
+              </a>
+            </div>
+            <DeliveryMap
+              :latitude="deliveryLocations[viewingOrder.id].lat"
+              :longitude="deliveryLocations[viewingOrder.id].lng"
+              :destination="getProfileForOrder(viewingOrder.profile_id)?.location ?? null"
+            />
+          </div>
+
+          <!-- Assign Delivery Section -->
+          <div class="assign-delivery-section">
+            <h3>Asignar Repartidor</h3>
+            <div v-if="viewingOrder.delivery_user_id" class="delivery-assigned-info">
+              <i class="pi pi-truck"></i>
+              <span>Asignado: <strong>{{ getUserDisplayName(viewingOrder.delivery_user_id) }}</strong></span>
+              <span v-if="viewingOrder.delivery_accepted_at" class="delivery-accepted-badge">
+                <i class="pi pi-check-circle"></i> Aceptada
+              </span>
+              <span v-else class="delivery-pending-badge">Pendiente de aceptación</span>
+            </div>
+            <div class="assign-delivery-form">
+              <Select
+                v-model="assignDeliveryUserId"
+                :options="deliveryUsersOptions"
+                option-label="display_name"
+                option-value="id"
+                placeholder="Seleccionar repartidor"
+                :loading="deliveryUsersLoading"
+                :empty-message="deliveryUsersLoading ? 'Cargando...' : 'No hay repartidores'"
+                class="delivery-select"
+                filter
+              >
+                <template #option="{ option }">
+                  <div class="delivery-option">
+                    <span>{{ option.display_name }}</span>
+                    <span class="delivery-option-email">{{ option.email }}</span>
+                  </div>
+                </template>
+              </Select>
+              <button
+                class="btn-assign-delivery"
+                :disabled="!assignDeliveryUserId || savingDelivery"
+                @click="saveAssignDelivery"
+              >
+                {{ savingDelivery ? "Asignando..." : viewingOrder.delivery_user_id ? "Reasignar" : "Asignar" }}
+              </button>
+            </div>
           </div>
 
           <div class="modal-actions">
@@ -2385,5 +2540,116 @@
       flex-wrap: wrap;
     }
   }
+
+.delivery-map-section {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-light, #e5e7eb);
+}
+
+.delivery-map-section h3 {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  color: #10b981;
+}
+
+.delivery-map-updated {
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+  margin-bottom: 0.5rem;
+}
+
+.delivery-map-actions {
+  margin-bottom: 0.75rem;
+}
+
+.btn-open-maps {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.8125rem;
+  color: var(--color-primary);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.btn-open-maps:hover {
+  text-decoration: underline;
+}
+
+.assign-delivery-section {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-light, #e5e7eb);
+}
+
+.assign-delivery-section h3 {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+  color: var(--color-text-primary);
+}
+
+.delivery-assigned-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+  margin-bottom: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.delivery-accepted-badge {
+  color: #10b981;
+  font-weight: 600;
+  font-size: 0.8125rem;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.delivery-pending-badge {
+  color: #f59e0b;
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+.assign-delivery-form {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.delivery-select {
+  flex: 1;
+  font-size: 0.875rem;
+}
+
+.delivery-option-email {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  margin-left: 0.5rem;
+}
+
+.btn-assign-delivery {
+  padding: 0.4rem 1rem;
+  background: var(--color-primary, #6366f1);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  cursor: pointer;
+  font-weight: 500;
+  transition: opacity 0.15s;
+}
+
+.btn-assign-delivery:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
 
 </style>

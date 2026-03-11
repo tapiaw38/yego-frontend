@@ -21,6 +21,11 @@ export function isAdmin(user: User | null): boolean {
   return user.roles.some(role => role.name === 'admin' || role.name === 'superadmin')
 }
 
+export function isDelivery(user: User | null): boolean {
+  if (!user?.roles) return false
+  return user.roles.some(role => role.name === 'delivery')
+}
+
 export interface LoginParams {
   email?: string
   password?: string
@@ -46,4 +51,8 @@ export interface RegisterParams {
 
 export interface RegisterResponse {
   data: User
+}
+
+export interface UserListResponse {
+  data: User[]
 }

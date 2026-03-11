@@ -9,6 +9,13 @@ export interface OrderData {
   items: OrderItem[]
 }
 
+export interface ProfileDeliveryInfo {
+  phone_number: string
+  address?: string
+  latitude?: number
+  longitude?: number
+}
+
 export interface Order {
   id: string
   profile_id: string
@@ -18,6 +25,9 @@ export interface Order {
   status_message?: string
   eta: string
   data?: OrderData
+  delivery_user_id?: string
+  delivery_accepted_at?: string
+  profile_info?: ProfileDeliveryInfo
   created_at: string
   updated_at: string
   all_statuses: string[]

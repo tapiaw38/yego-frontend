@@ -56,5 +56,22 @@ export const orderService = {
   async updateOrder(id: string, input: UpdateOrderInput): Promise<Order> {
     const { data } = await apiClient.put<Order>(`/api/admin/orders/${id}`, input)
     return data
+  },
+
+  async assignDelivery(orderId: string, deliveryUserId: string): Promise<Order> {
+    const { data } = await apiClient.post<Order>(`/api/admin/orders/${orderId}/assign-delivery`, {
+      delivery_user_id: deliveryUserId
+    })
+    return data
+  },
+
+  async acceptDelivery(orderId: string): Promise<{ data: Order }> {
+    const { data } = await apiClient.post<{ data: Order }>(`/api/orders/${orderId}/accept-delivery`, {})
+    return data
+  },
+
+  async getDeliveryOrders(): Promise<{ orders: Order[]; total: number }> {
+    const { data } = await apiClient.get<{ orders: Order[]; total: number }>('/api/orders/delivery')
+    return data
   }
 }

@@ -4,7 +4,8 @@ import type {
   LoginResponse,
   MeUserResponse,
   RegisterParams,
-  RegisterResponse
+  RegisterResponse,
+  UserListResponse,
 } from '../types/auth'
 
 export const authService = {
@@ -39,6 +40,19 @@ export const authService = {
     await authClient.post('/user/me/password/set', {
       new_password: newPassword,
     })
+  },
+
+  async requestResetPassword(email: string): Promise<void> {
+    await authClient.post('/auth/request-reset-password', { email })
+  },
+
+  async resetPassword(token: string, password: string): Promise<void> {
+    await authClient.post('/auth/reset-password', { token, password })
+  },
+
+  async listUsers(params?: { role?: string; limit?: number; offset?: number }): Promise<UserListResponse> {
+    const { data } = await authClient.get<UserListResponse>('/user/list', { params })
+    return data
   },
 
   getToken(): string | null {
