@@ -20,6 +20,8 @@
   import {
     websocketService,
     type OrderClaimedPayload,
+    type OrderCreatedPayload,
+    type OrderUpdatedPayload,
   } from "@/services/websocket/websocketService";
   import Toast from "primevue/toast";
 
@@ -582,14 +584,30 @@
   // Setup WebSocket for real-time notifications
   const { isConnected } = useWebSocket({
     onOrderClaimed: (payload: OrderClaimedPayload) => {
-      // Show toast notification
       toast.add({
         severity: "info",
-        summary: "Nueva Orden Asignada",
-        detail: `Un usuario ha reclamado la orden ${payload.order_id.slice(0, 8)}...`,
+        summary: "Orden reclamada",
+        detail: `Un usuario reclamó la orden ${payload.order_id.slice(0, 8)}…`,
         life: 5000,
       });
-      // Refresh orders list
+      fetchData();
+    },
+    onOrderCreated: (payload: OrderCreatedPayload) => {
+      toast.add({
+        severity: "success",
+        summary: "Nueva orden",
+        detail: `Se creó la orden ${payload.order_id.slice(0, 8)}… (${payload.status})`,
+        life: 5000,
+      });
+      fetchData();
+    },
+    onOrderUpdated: (payload: OrderUpdatedPayload) => {
+      toast.add({
+        severity: "warn",
+        summary: "Orden actualizada",
+        detail: `Orden ${payload.order_id.slice(0, 8)}… → ${payload.status}`,
+        life: 4000,
+      });
       fetchData();
     },
     onConnected: () => {
@@ -701,6 +719,12 @@
         @click="router.push('/admin/images')"
       >
         Imágenes
+      </button>
+      <button
+        class="tab"
+        @click="router.push('/admin/coupons')"
+      >
+        Cupones
       </button>
     </nav>
 

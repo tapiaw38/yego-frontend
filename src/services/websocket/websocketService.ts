@@ -1,4 +1,4 @@
-export type NotificationType = 'order_claimed' | 'order_updated'
+export type NotificationType = 'order_claimed' | 'order_created' | 'order_updated'
 
 export interface OrderClaimedPayload {
   order_id: string
@@ -9,9 +9,23 @@ export interface OrderClaimedPayload {
   claimed_at: string
 }
 
+export interface OrderCreatedPayload {
+  order_id: string
+  profile_id?: string
+  status: string
+  eta: string
+  created_at: string
+}
+
+export interface OrderUpdatedPayload {
+  order_id: string
+  status: string
+  eta: string
+}
+
 export interface Notification {
   type: NotificationType
-  payload: OrderClaimedPayload | unknown
+  payload: OrderClaimedPayload | OrderCreatedPayload | OrderUpdatedPayload | unknown
 }
 
 type MessageHandler = (notification: Notification) => void

@@ -239,10 +239,11 @@
     );
   });
 
-  // Check if current user can pay (profile owner + status CREATED)
+  // Check if current user can pay (profile owner + status CREATED + no pending prices)
   const canPay = computed(() => {
     if (!isOrderOwner.value || !order.value) return false;
     if (isUserAdmin.value) return false;
+    if (hasPendingPrices.value) return false;
     return order.value.status === "CREATED";
   });
 
@@ -472,6 +473,25 @@
       <div v-else-if="order" class="order-content">
         <!-- Order Header Component -->
         <OrderHeader :order="order" />
+
+        <!-- Pending prices block -->
+        <div
+          v-if="hasPendingPrices && isOrderOwner && !isUserAdmin && order.status === 'CREATED'"
+          class="alert alert--pending-price"
+        >
+          <div class="alert__body">
+            <span class="alert__icon alert__icon--warning">
+              <i class="pi pi-exclamation-triangle"></i>
+            </span>
+            <div class="alert__text">
+              <strong class="alert__title">Precios pendientes</strong>
+              <p class="alert__desc">
+                Algunos productos aún no tienen precio asignado. No es posible
+                realizar el pago hasta que todos los precios estén confirmados.
+              </p>
+            </div>
+          </div>
+        </div>
 
         <!-- Pay Now Alert -->
         <div v-if="canPay" class="alert alert--pay">
@@ -1217,6 +1237,17 @@
   .alert--pay .alert__icon {
     background: color-mix(in srgb, var(--color-success) 18%, transparent);
     color: var(--color-success-dark);
+  }
+
+  /* Alert — pending price (orange tones) */
+  .alert--pending-price {
+    background: color-mix(in srgb, var(--color-warning, #f59e0b) 10%, transparent);
+    border-color: color-mix(in srgb, var(--color-warning, #f59e0b) 35%, transparent);
+  }
+
+  .alert--pending-price .alert__icon--warning {
+    background: color-mix(in srgb, var(--color-warning, #f59e0b) 18%, transparent);
+    color: #b45309;
   }
 
   /* Alert — paused (warning/amber tones) */

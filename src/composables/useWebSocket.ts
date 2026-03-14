@@ -1,9 +1,17 @@
 import { ref, onMounted, onUnmounted, type Ref } from 'vue'
-import { websocketService, type Notification, type OrderClaimedPayload } from '@/services/websocket/websocketService'
+import {
+  websocketService,
+  type Notification,
+  type OrderClaimedPayload,
+  type OrderCreatedPayload,
+  type OrderUpdatedPayload,
+} from '@/services/websocket/websocketService'
 
 export interface UseWebSocketOptions {
   autoConnect?: boolean
   onOrderClaimed?: (payload: OrderClaimedPayload) => void
+  onOrderCreated?: (payload: OrderCreatedPayload) => void
+  onOrderUpdated?: (payload: OrderUpdatedPayload) => void
   onConnected?: () => void
   onDisconnected?: () => void
 }
@@ -23,6 +31,12 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
   const handleMessage = (notification: Notification) => {
     if (notification.type === 'order_claimed' && options.onOrderClaimed) {
       options.onOrderClaimed(notification.payload as OrderClaimedPayload)
+    }
+    if (notification.type === 'order_created' && options.onOrderCreated) {
+      options.onOrderCreated(notification.payload as OrderCreatedPayload)
+    }
+    if (notification.type === 'order_updated' && options.onOrderUpdated) {
+      options.onOrderUpdated(notification.payload as OrderUpdatedPayload)
     }
   }
 
